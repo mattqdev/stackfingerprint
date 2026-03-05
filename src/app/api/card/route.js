@@ -1,51 +1,52 @@
 // src/app/api/card/route.js
-import { NextResponse } from 'next/server';
-import { fetchContents } from '@/lib/github';
-import { detectStack }   from '@/lib/detect';
-import { buildSVG }      from '@/lib/svgBuilder';
-import { DEFAULT_CONFIG } from '@/data/cardOptions';
+import { NextResponse } from "next/server";
+import { fetchContents } from "..lib/github";
+import { detectStack } from "..lib/detect";
+import { buildSVG } from "..lib/svgBuilder";
+import { DEFAULT_CONFIG } from "..data/cardOptions";
 
 export const revalidate = 300; // cache 5 min
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const repoParam = searchParams.get('repo') ?? '';
+  const repoParam = searchParams.get("repo") ?? "";
 
-  const parts = repoParam.split('/').filter(Boolean);
+  const parts = repoParam.split("/").filter(Boolean);
   if (parts.length < 2) {
-    return new NextResponse('Missing ?repo=owner/repo', { status: 400 });
+    return new NextResponse("Missing ?repo=owner/repo", { status: 400 });
   }
   const [owner, repo] = parts;
 
   const cfg = {
     ...DEFAULT_CONFIG,
-    theme:         searchParams.get('theme')  ?? 'midnight',
-    layout:        searchParams.get('layout') ?? 'classic',
-    size:          searchParams.get('size')   ?? 'md',
-    iconStyle:     searchParams.get('icons')  ?? 'color',
-    pillShape:     searchParams.get('pills')  ?? 'pill',
-    bgDecoration:  searchParams.get('bg')     ?? 'none',
-    accentLine:    searchParams.get('accent') ?? 'bar',
-    categoryFilter:searchParams.get('cats')   ?? 'all',
+    theme: searchParams.get("theme") ?? "midnight",
+    layout: searchParams.get("layout") ?? "classic",
+    size: searchParams.get("size") ?? "md",
+    iconStyle: searchParams.get("icons") ?? "color",
+    pillShape: searchParams.get("pills") ?? "pill",
+    bgDecoration: searchParams.get("bg") ?? "none",
+    accentLine: searchParams.get("accent") ?? "bar",
+    categoryFilter: searchParams.get("cats") ?? "all",
   };
 
   try {
     const stack = await detectStack(owner, repo, fetchContents);
-    const svg   = buildSVG(owner, repo, stack, cfg);
+    const svg = buildSVG(owner, repo, stack, cfg);
 
     return new NextResponse(svg, {
       status: 200,
       headers: {
-        'Content-Type': 'image/svg+xml',
-        'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
-        'Access-Control-Allow-Origin': '*',
+        "Content-Type": "image/svg+xml",
+        "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
+        "Access-Control-Allow-Origin": "*",
       },
     });
   } catch (e) {
-    const code = e.message === 'NOT_FOUND' ? 404 : e.message === 'RATE_LIMIT' ? 429 : 500;
+    const code =
+      e.message === "NOT_FOUND" ? 404 : e.message === "RATE_LIMIT" ? 429 : 500;
     return new NextResponse(errorSVG(e.message, code), {
       status: code,
-      headers: { 'Content-Type': 'image/svg+xml' },
+      headers: { "Content-Type": "image/svg+xml" },
     });
   }
 }
@@ -58,7 +59,7 @@ function errorSVG(msg, code) {
     Stack Fingerprint — Error ${code}
   </text>
   <text x="20" y="56" font-family="ui-monospace,monospace" font-size="10" fill="rgba(248,113,113,0.5)">
-    ${msg === 'RATE_LIMIT' ? 'GitHub rate limit — try again shortly' : msg === 'NOT_FOUND' ? 'Repository not found or is private' : 'Something went wrong'}
+    ${msg === "RATE_LIMIT" ? "GitHub rate limit — try again shortly" : msg === "NOT_FOUND" ? "Repository not found or is private" : "Something went wrong"}
   </text>
 </svg>`;
 }
