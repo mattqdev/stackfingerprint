@@ -1,9 +1,9 @@
 // src/app/api/card/route.js
 import { NextResponse } from "next/server";
-import { fetchContents } from "..lib/github";
-import { detectStack } from "..lib/detect";
-import { buildSVG } from "..lib/svgBuilder";
-import { DEFAULT_CONFIG } from "..data/cardOptions";
+import { fetchContents } from "../../../lib/github";
+import { detectStack } from "../../../lib/detect";
+import { buildSVG } from "../../../lib/svgBuilder";
+import { DEFAULT_CONFIG } from "../../../data/cardOptions";
 
 export const revalidate = 300; // cache 5 min
 
