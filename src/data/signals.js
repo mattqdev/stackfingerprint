@@ -1,0 +1,135 @@
+// src/data/signals.js
+// Each signal: { id, label, color, textColor, iconSlug (simpleicons.org), category, check(filename) }
+
+export const SIGNALS = [
+  // ── Frameworks ─────────────────────────────────────────────────────────────
+  { id:'nextjs',      label:'Next.js',       color:'#000000', textColor:'#ffffff', iconSlug:'nextdotjs',    category:'framework', check:f=>/^next\.config\.(js|ts|mjs|cjs)$/.test(f) },
+  { id:'nuxt',        label:'Nuxt',          color:'#00DC82', textColor:'#000000', iconSlug:'nuxtdotjs',    category:'framework', check:f=>/^nuxt\.config/.test(f) },
+  { id:'sveltekit',   label:'SvelteKit',     color:'#FF3E00', textColor:'#ffffff', iconSlug:'svelte',       category:'framework', check:f=>/^svelte\.config/.test(f) },
+  { id:'remix',       label:'Remix',         color:'#121212', textColor:'#ffffff', iconSlug:'remix',        category:'framework', check:f=>/^remix\.config/.test(f) },
+  { id:'angular',     label:'Angular',       color:'#DD0031', textColor:'#ffffff', iconSlug:'angular',      category:'framework', check:f=>f==='angular.json' },
+  { id:'astro',       label:'Astro',         color:'#FF5D01', textColor:'#ffffff', iconSlug:'astro',        category:'framework', check:f=>/^astro\.config/.test(f) },
+  { id:'gatsby',      label:'Gatsby',        color:'#663399', textColor:'#ffffff', iconSlug:'gatsby',       category:'framework', check:f=>/^gatsby-config/.test(f) },
+  { id:'expo',        label:'Expo',          color:'#000020', textColor:'#ffffff', iconSlug:'expo',         category:'framework', check:f=>f==='app.json'||f==='expo.json' },
+  { id:'nestjs',      label:'NestJS',        color:'#E0234E', textColor:'#ffffff', iconSlug:'nestjs',       category:'framework', check:f=>f==='nest-cli.json' },
+  { id:'laravel',     label:'Laravel',       color:'#FF2D20', textColor:'#ffffff', iconSlug:'laravel',      category:'framework', check:f=>f==='artisan' },
+  { id:'rails',       label:'Rails',         color:'#CC0000', textColor:'#ffffff', iconSlug:'rubyonrails',  category:'framework', check:f=>f==='Rakefile'||f==='config.ru' },
+  { id:'django',      label:'Django',        color:'#092E20', textColor:'#44B78B', iconSlug:'django',       category:'framework', check:f=>f==='manage.py' },
+  { id:'flask',       label:'Flask',         color:'#000000', textColor:'#ffffff', iconSlug:'flask',        category:'framework', check:f=>f==='wsgi.py' },
+  { id:'fastapi',     label:'FastAPI',       color:'#009688', textColor:'#ffffff', iconSlug:'fastapi',      category:'framework', check:f=>f==='main.py' },
+  { id:'tauri',       label:'Tauri',         color:'#24C8DB', textColor:'#000000', iconSlug:'tauri',        category:'framework', check:f=>f==='tauri.conf.json'||f==='src-tauri' },
+  { id:'electron',    label:'Electron',      color:'#47848F', textColor:'#ffffff', iconSlug:'electron',     category:'framework', check:f=>f==='electron-builder.json'||f==='electron-builder.yml' },
+  { id:'capacitor',   label:'Capacitor',     color:'#119EFF', textColor:'#ffffff', iconSlug:'capacitor',    category:'framework', check:f=>f==='capacitor.config.ts'||f==='capacitor.config.json' },
+  { id:'solidjs',     label:'SolidJS',       color:'#335D92', textColor:'#ffffff', iconSlug:'solid',        category:'framework', check:f=>/^solid/.test(f) },
+  { id:'qwik',        label:'Qwik',          color:'#AC7EF4', textColor:'#ffffff', iconSlug:'qwik',         category:'framework', check:f=>/^qwik/.test(f) },
+  { id:'hono',        label:'Hono',          color:'#E36002', textColor:'#ffffff', iconSlug:'hono',         category:'framework', check:f=>f==='hono.ts'||f==='hono.js' },
+
+  // ── Build Tools ─────────────────────────────────────────────────────────────
+  { id:'vite',        label:'Vite',          color:'#646CFF', textColor:'#ffffff', iconSlug:'vite',         category:'build', check:f=>/^vite\.config/.test(f) },
+  { id:'webpack',     label:'Webpack',       color:'#8DD6F9', textColor:'#000000', iconSlug:'webpack',      category:'build', check:f=>/^webpack\.config/.test(f) },
+  { id:'rollup',      label:'Rollup',        color:'#EC4A3F', textColor:'#ffffff', iconSlug:'rollupdotjs',  category:'build', check:f=>/^rollup\.config/.test(f) },
+  { id:'esbuild',     label:'esbuild',       color:'#FFCF00', textColor:'#000000', iconSlug:'esbuild',      category:'build', check:f=>/^esbuild/.test(f) },
+  { id:'turbo',       label:'Turborepo',     color:'#EF4444', textColor:'#ffffff', iconSlug:'turborepo',    category:'build', check:f=>f==='turbo.json' },
+  { id:'nx',          label:'Nx',            color:'#143055', textColor:'#ffffff', iconSlug:'nx',           category:'build', check:f=>f==='nx.json' },
+  { id:'rspack',      label:'Rspack',        color:'#F93920', textColor:'#ffffff', iconSlug:'rspack',       category:'build', check:f=>/^rspack\.config/.test(f) },
+
+  // ── Runtimes ────────────────────────────────────────────────────────────────
+  { id:'docker',      label:'Docker',        color:'#2496ED', textColor:'#ffffff', iconSlug:'docker',       category:'runtime', check:f=>f==='Dockerfile'||f==='docker-compose.yml'||f==='docker-compose.yaml'||f==='.dockerignore' },
+  { id:'deno',        label:'Deno',          color:'#000000', textColor:'#ffffff', iconSlug:'deno',         category:'runtime', check:f=>f==='deno.json'||f==='deno.jsonc' },
+  { id:'node',        label:'Node.js',       color:'#5FA04E', textColor:'#ffffff', iconSlug:'nodedotjs',    category:'runtime', check:f=>f==='.nvmrc'||f==='.node-version'||f==='.npmrc' },
+
+  // ── Languages ───────────────────────────────────────────────────────────────
+  { id:'rust',        label:'Rust',          color:'#CE422B', textColor:'#ffffff', iconSlug:'rust',         category:'lang', check:f=>f==='Cargo.toml' },
+  { id:'golang',      label:'Go',            color:'#00ACD7', textColor:'#ffffff', iconSlug:'go',           category:'lang', check:f=>f==='go.mod' },
+  { id:'python',      label:'Python',        color:'#3776AB', textColor:'#ffffff', iconSlug:'python',       category:'lang', check:f=>f==='pyproject.toml'||f==='setup.py'||f==='requirements.txt' },
+  { id:'ruby',        label:'Ruby',          color:'#CC342D', textColor:'#ffffff', iconSlug:'ruby',         category:'lang', check:f=>f==='Gemfile' },
+  { id:'java',        label:'Java',          color:'#ED8B00', textColor:'#ffffff', iconSlug:'openjdk',      category:'lang', check:f=>f==='pom.xml'||f==='build.gradle' },
+  { id:'dotnet',      label:'.NET',          color:'#512BD4', textColor:'#ffffff', iconSlug:'dotnet',       category:'lang', check:f=>/\.csproj$/.test(f)||/\.sln$/.test(f) },
+  { id:'elixir',      label:'Elixir',        color:'#4B275F', textColor:'#ffffff', iconSlug:'elixir',       category:'lang', check:f=>f==='mix.exs' },
+  { id:'haskell',     label:'Haskell',       color:'#5D4F85', textColor:'#ffffff', iconSlug:'haskell',      category:'lang', check:f=>f==='cabal.project'||/\.cabal$/.test(f) },
+  { id:'zig',         label:'Zig',           color:'#F7A41D', textColor:'#000000', iconSlug:'zig',          category:'lang', check:f=>f==='build.zig' },
+  { id:'php',         label:'PHP',           color:'#777BB4', textColor:'#ffffff', iconSlug:'php',          category:'lang', check:f=>f==='composer.json' },
+  { id:'swift',       label:'Swift',         color:'#FA7343', textColor:'#ffffff', iconSlug:'swift',        category:'lang', check:f=>/Package\.swift/.test(f)||/\.xcodeproj$/.test(f) },
+  { id:'kotlin',      label:'Kotlin',        color:'#7F52FF', textColor:'#ffffff', iconSlug:'kotlin',       category:'lang', check:f=>/build\.gradle\.kts$/.test(f) },
+  { id:'dart',        label:'Dart/Flutter',  color:'#0175C2', textColor:'#ffffff', iconSlug:'dart',         category:'lang', check:f=>f==='pubspec.yaml' },
+
+  // ── Package Managers ────────────────────────────────────────────────────────
+  { id:'npm',         label:'npm',           color:'#CB3837', textColor:'#ffffff', iconSlug:'npm',          category:'pkgmgr', check:f=>f==='package-lock.json' },
+  { id:'yarn',        label:'Yarn',          color:'#2C8EBB', textColor:'#ffffff', iconSlug:'yarn',         category:'pkgmgr', check:f=>f==='yarn.lock' },
+  { id:'pnpm',        label:'pnpm',          color:'#F69220', textColor:'#ffffff', iconSlug:'pnpm',         category:'pkgmgr', check:f=>f==='pnpm-lock.yaml' },
+  { id:'bun',         label:'Bun',           color:'#14151A', textColor:'#FBF0DF', iconSlug:'bun',          category:'pkgmgr', check:f=>f==='bun.lockb'||f==='bun.lock' },
+
+  // ── Testing ─────────────────────────────────────────────────────────────────
+  { id:'jest',        label:'Jest',          color:'#C21325', textColor:'#ffffff', iconSlug:'jest',         category:'testing', check:f=>/^jest\.config/.test(f) },
+  { id:'vitest',      label:'Vitest',        color:'#6E9F18', textColor:'#ffffff', iconSlug:'vitest',       category:'testing', check:f=>/^vitest\.config/.test(f) },
+  { id:'cypress',     label:'Cypress',       color:'#1B1E2E', textColor:'#69D3A7', iconSlug:'cypress',      category:'testing', check:f=>/^cypress\.config/.test(f) },
+  { id:'playwright',  label:'Playwright',    color:'#2EAD33', textColor:'#ffffff', iconSlug:'playwright',   category:'testing', check:f=>/^playwright\.config/.test(f) },
+  { id:'storybook',   label:'Storybook',     color:'#FF4785', textColor:'#ffffff', iconSlug:'storybook',    category:'testing', check:f=>f==='.storybook' },
+  { id:'mocha',       label:'Mocha',         color:'#8D6748', textColor:'#ffffff', iconSlug:'mocha',        category:'testing', check:f=>/^\.mocharc/.test(f) },
+
+  // ── CI/CD ───────────────────────────────────────────────────────────────────
+  { id:'github-actions', label:'GH Actions', color:'#2088FF', textColor:'#ffffff', iconSlug:'githubactions',category:'cicd', check:f=>f==='.github' },
+  { id:'circleci',    label:'CircleCI',      color:'#343434', textColor:'#ffffff', iconSlug:'circleci',     category:'cicd', check:f=>f==='.circleci' },
+  { id:'jenkins',     label:'Jenkins',       color:'#D33833', textColor:'#ffffff', iconSlug:'jenkins',      category:'cicd', check:f=>f==='Jenkinsfile' },
+  { id:'gitlab-ci',   label:'GitLab CI',     color:'#FC6D26', textColor:'#ffffff', iconSlug:'gitlab',       category:'cicd', check:f=>f==='.gitlab-ci.yml' },
+  { id:'travisci',    label:'Travis CI',     color:'#3EAAAF', textColor:'#ffffff', iconSlug:'travisci',     category:'cicd', check:f=>f==='.travis.yml' },
+
+  // ── Databases / ORM ─────────────────────────────────────────────────────────
+  { id:'prisma',      label:'Prisma',        color:'#2D3748', textColor:'#ffffff', iconSlug:'prisma',       category:'db', check:f=>f==='prisma' },
+  { id:'drizzle',     label:'Drizzle',       color:'#C5F74F', textColor:'#000000', iconSlug:'drizzle',      category:'db', check:f=>/^drizzle\.config/.test(f) },
+  { id:'supabase',    label:'Supabase',      color:'#3ECF8E', textColor:'#000000', iconSlug:'supabase',     category:'db', check:f=>f==='supabase' },
+  { id:'firebase',    label:'Firebase',      color:'#FFCA28', textColor:'#000000', iconSlug:'firebase',     category:'db', check:f=>f==='firebase.json'||f==='.firebaserc' },
+  { id:'planetscale', label:'PlanetScale',   color:'#000000', textColor:'#ffffff', iconSlug:'planetscale',  category:'db', check:f=>f==='.pscale.yml' },
+  { id:'redis',       label:'Redis',         color:'#DC382D', textColor:'#ffffff', iconSlug:'redis',        category:'db', check:f=>f==='redis.conf' },
+
+  // ── Infra / Cloud ───────────────────────────────────────────────────────────
+  { id:'vercel',      label:'Vercel',        color:'#000000', textColor:'#ffffff', iconSlug:'vercel',       category:'infra', check:f=>f==='vercel.json' },
+  { id:'netlify',     label:'Netlify',       color:'#00C7B7', textColor:'#000000', iconSlug:'netlify',      category:'infra', check:f=>f==='netlify.toml' },
+  { id:'flyio',       label:'Fly.io',        color:'#7B3FE4', textColor:'#ffffff', iconSlug:'flydotio',     category:'infra', check:f=>f==='fly.toml' },
+  { id:'terraform',   label:'Terraform',     color:'#7B42BC', textColor:'#ffffff', iconSlug:'terraform',    category:'infra', check:f=>f==='terraform'||/\.tf$/.test(f) },
+  { id:'aws-cdk',     label:'AWS CDK',       color:'#FF9900', textColor:'#000000', iconSlug:'amazonaws',    category:'infra', check:f=>f==='cdk.json' },
+  { id:'pulumi',      label:'Pulumi',        color:'#8A3391', textColor:'#ffffff', iconSlug:'pulumi',       category:'infra', check:f=>f==='Pulumi.yaml' },
+  { id:'serverless',  label:'Serverless',    color:'#FD5750', textColor:'#ffffff', iconSlug:'serverless',   category:'infra', check:f=>/^serverless\.(yml|yaml)$/.test(f) },
+  { id:'render',      label:'Render',        color:'#46E3B7', textColor:'#000000', iconSlug:'render',       category:'infra', check:f=>f==='render.yaml' },
+
+  // ── Linting / Formatting ────────────────────────────────────────────────────
+  { id:'eslint',      label:'ESLint',        color:'#4B32C3', textColor:'#ffffff', iconSlug:'eslint',       category:'lint', check:f=>/^\.eslintrc/.test(f)||f==='eslint.config.js'||f==='eslint.config.mjs' },
+  { id:'prettier',    label:'Prettier',      color:'#F7B93E', textColor:'#000000', iconSlug:'prettier',     category:'lint', check:f=>f==='.prettierrc'||/^\.prettierrc\./.test(f) },
+  { id:'biome',       label:'Biome',         color:'#60A5FA', textColor:'#000000', iconSlug:'biome',        category:'lint', check:f=>f==='biome.json' },
+  { id:'oxlint',      label:'oxlint',        color:'#FF5733', textColor:'#ffffff', iconSlug:'oxc',          category:'lint', check:f=>f==='oxlint.json' },
+];
+
+// Extension → language mapping
+export const EXT_LANGS = [
+  { id:'typescript',  label:'TypeScript',    color:'#3178C6', textColor:'#ffffff', iconSlug:'typescript',  category:'lang', exts:['.ts','.tsx'] },
+  { id:'javascript',  label:'JavaScript',    color:'#F7DF1E', textColor:'#000000', iconSlug:'javascript',  category:'lang', exts:['.js','.jsx','.mjs'] },
+  { id:'python',      label:'Python',        color:'#3776AB', textColor:'#ffffff', iconSlug:'python',      category:'lang', exts:['.py'] },
+  { id:'rust',        label:'Rust',          color:'#CE422B', textColor:'#ffffff', iconSlug:'rust',        category:'lang', exts:['.rs'] },
+  { id:'golang',      label:'Go',            color:'#00ACD7', textColor:'#ffffff', iconSlug:'go',          category:'lang', exts:['.go'] },
+  { id:'ruby',        label:'Ruby',          color:'#CC342D', textColor:'#ffffff', iconSlug:'ruby',        category:'lang', exts:['.rb'] },
+  { id:'java',        label:'Java',          color:'#ED8B00', textColor:'#ffffff', iconSlug:'openjdk',     category:'lang', exts:['.java'] },
+  { id:'swift',       label:'Swift',         color:'#FA7343', textColor:'#ffffff', iconSlug:'swift',       category:'lang', exts:['.swift'] },
+  { id:'kotlin',      label:'Kotlin',        color:'#7F52FF', textColor:'#ffffff', iconSlug:'kotlin',      category:'lang', exts:['.kt'] },
+  { id:'cpp',         label:'C++',           color:'#00599C', textColor:'#ffffff', iconSlug:'cplusplus',   category:'lang', exts:['.cpp','.cc','.cxx'] },
+  { id:'csharp',      label:'C#',            color:'#512BD4', textColor:'#ffffff', iconSlug:'csharp',      category:'lang', exts:['.cs'] },
+  { id:'php',         label:'PHP',           color:'#777BB4', textColor:'#ffffff', iconSlug:'php',         category:'lang', exts:['.php'] },
+  { id:'elixir',      label:'Elixir',        color:'#4B275F', textColor:'#ffffff', iconSlug:'elixir',      category:'lang', exts:['.ex','.exs'] },
+  { id:'dart',        label:'Dart',          color:'#0175C2', textColor:'#ffffff', iconSlug:'dart',        category:'lang', exts:['.dart'] },
+  { id:'scala',       label:'Scala',         color:'#DC322F', textColor:'#ffffff', iconSlug:'scala',       category:'lang', exts:['.scala'] },
+  { id:'zig',         label:'Zig',           color:'#F7A41D', textColor:'#000000', iconSlug:'zig',         category:'lang', exts:['.zig'] },
+  { id:'lua',         label:'Lua',           color:'#2C2D72', textColor:'#ffffff', iconSlug:'lua',         category:'lang', exts:['.lua'] },
+  { id:'haskell',     label:'Haskell',       color:'#5D4F85', textColor:'#ffffff', iconSlug:'haskell',     category:'lang', exts:['.hs'] },
+];
+
+export const CATEGORY_META = {
+  lang:      { label:'Language',      order:0 },
+  framework: { label:'Framework',     order:1 },
+  runtime:   { label:'Runtime',       order:2 },
+  build:     { label:'Build Tool',    order:3 },
+  pkgmgr:    { label:'Package Mgr',   order:4 },
+  db:        { label:'Database',      order:5 },
+  testing:   { label:'Testing',       order:6 },
+  cicd:      { label:'CI/CD',         order:7 },
+  infra:     { label:'Infra',         order:8 },
+  lint:      { label:'Linting',       order:9 },
+};

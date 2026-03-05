@@ -1,0 +1,86 @@
+// src/data/themes.js
+
+export const THEMES = {
+  midnight: {
+    label:'Midnight',  emoji:'🌑',
+    bg1:'#08080f', bg2:'#0d0d1a',
+    border:'rgba(255,255,255,0.07)',
+    title:'#e8e8f2', owner:'#818cf8', slash:'#3f3f6a',
+    sub:'#4a4a7a', muted:'#2a2a50',
+    accent:'#818cf8', shimmer:'rgba(129,140,248,0.04)',
+  },
+  arctic: {
+    label:'Arctic',    emoji:'🧊',
+    bg1:'#eef2ff', bg2:'#e0e8ff',
+    border:'rgba(99,102,241,0.2)',
+    title:'#1e1b4b', owner:'#4338ca', slash:'#a5b4fc',
+    sub:'#6366f1', muted:'#c7d2fe',
+    accent:'#4338ca', shimmer:'rgba(99,102,241,0.08)',
+  },
+  forest: {
+    label:'Forest',    emoji:'🌲',
+    bg1:'#061409', bg2:'#091c0d',
+    border:'rgba(74,222,128,0.1)',
+    title:'#dcfce7', owner:'#4ade80', slash:'#166534',
+    sub:'#16a34a', muted:'#14532d',
+    accent:'#4ade80', shimmer:'rgba(74,222,128,0.04)',
+  },
+  ember: {
+    label:'Ember',     emoji:'🔥',
+    bg1:'#150902', bg2:'#1c0e03',
+    border:'rgba(251,146,60,0.1)',
+    title:'#ffedd5', owner:'#fb923c', slash:'#7c2d12',
+    sub:'#c2410c', muted:'#431407',
+    accent:'#fb923c', shimmer:'rgba(251,146,60,0.04)',
+  },
+  ocean: {
+    label:'Ocean',     emoji:'🌊',
+    bg1:'#020d1c', bg2:'#031220',
+    border:'rgba(56,189,248,0.1)',
+    title:'#e0f2fe', owner:'#38bdf8', slash:'#0c4a6e',
+    sub:'#0284c7', muted:'#082f49',
+    accent:'#38bdf8', shimmer:'rgba(56,189,248,0.04)',
+  },
+  obsidian: {
+    label:'Obsidian',  emoji:'🪨',
+    bg1:'#101010', bg2:'#181818',
+    border:'rgba(255,255,255,0.06)',
+    title:'#f0f0f0', owner:'#d4d4d4', slash:'#525252',
+    sub:'#737373', muted:'#3a3a3a',
+    accent:'#d4d4d4', shimmer:'rgba(255,255,255,0.02)',
+  },
+  sakura: {
+    label:'Sakura',    emoji:'🌸',
+    bg1:'#18090f', bg2:'#1e0c14',
+    border:'rgba(244,114,182,0.1)',
+    title:'#fce7f3', owner:'#f472b6', slash:'#831843',
+    sub:'#db2777', muted:'#500724',
+    accent:'#f472b6', shimmer:'rgba(244,114,182,0.04)',
+  },
+  golden: {
+    label:'Golden',    emoji:'✨',
+    bg1:'#110f08', bg2:'#171409',
+    border:'rgba(234,179,8,0.12)',
+    title:'#fef9c3', owner:'#eab308', slash:'#713f12',
+    sub:'#a16207', muted:'#422006',
+    accent:'#eab308', shimmer:'rgba(234,179,8,0.04)',
+  },
+  rose: {
+    label:'Rose',      emoji:'🌹',
+    bg1:'#f9f0f2', bg2:'#f3e6ea',
+    border:'rgba(244,63,94,0.15)',
+    title:'#4c0519', owner:'#e11d48', slash:'#fda4af',
+    sub:'#be123c', muted:'#fecdd3',
+    accent:'#e11d48', shimmer:'rgba(244,63,94,0.06)',
+  },
+  nord: {
+    label:'Nord',      emoji:'❄️',
+    bg1:'#2e3440', bg2:'#3b4252',
+    border:'rgba(136,192,208,0.15)',
+    title:'#eceff4', owner:'#88c0d0', slash:'#4c566a',
+    sub:'#81a1c1', muted:'#434c5e',
+    accent:'#88c0d0', shimmer:'rgba(136,192,208,0.04)',
+  },
+};
+
+export const DEFAULT_THEME = 'midnight';
