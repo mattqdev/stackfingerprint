@@ -46,7 +46,7 @@ function renderPill(
   fontSize,
   iconW,
   iconStyle,
-  accentColor,
+  accentColor
 ) {
   const px = x.toFixed(1);
   const rad = pillR.toFixed(1);
@@ -87,10 +87,10 @@ function bgDecoration(type, W, H, accentColor) {
         y1 = 20,
         y2 = H - 20;
       lines.push(
-        `<line x1="${x1}" y1="${y1}" x2="${x1}" y2="${y2}" stroke="${accentColor}" stroke-opacity="0.05" stroke-width="1"/>`,
+        `<line x1="${x1}" y1="${y1}" x2="${x1}" y2="${y2}" stroke="${accentColor}" stroke-opacity="0.05" stroke-width="1"/>`
       );
       lines.push(
-        `<circle cx="${x1}" cy="${y1 + 10 + i * 15}" r="2" fill="${accentColor}" fill-opacity="0.08"/>`,
+        `<circle cx="${x1}" cy="${y1 + 10 + i * 15}" r="2" fill="${accentColor}" fill-opacity="0.08"/>`
       );
     }
     return lines.join("\n");
@@ -150,7 +150,7 @@ function buildClassic(owner, repo, stack, theme, cfg) {
         FS,
         IW,
         cfg.iconStyle,
-        theme.accent,
+        theme.accent
       );
       x += p.pw + GAP;
     });
@@ -190,7 +190,7 @@ function buildClassic(owner, repo, stack, theme, cfg) {
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="22" y="${H - 12}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}" letter-spacing="0.8">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
     ${cfg.dataFields.brandLabel ? `<text x="${W - 22}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}" letter-spacing="0.8">stackfingerprint.dev</text>` : ""}
-  `,
+  `
   );
 }
 
@@ -224,7 +224,7 @@ function buildCompact(owner, repo, stack, theme, cfg) {
         FS,
         IW,
         cfg.iconStyle,
-        theme.accent,
+        theme.accent
       );
       x += p.pw + GAP;
     });
@@ -258,7 +258,7 @@ function buildCompact(owner, repo, stack, theme, cfg) {
     ${cfg.dataFields.signalCount ? `<text x="20" y="48" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="1.5">${stack.length} SIGNALS</text>` : ""}
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="${W / 2}" y="${H - 10}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
-  `,
+  `
   );
 }
 
@@ -292,7 +292,7 @@ function buildBanner(owner, repo, stack, theme, cfg) {
         FS,
         IW,
         cfg.iconStyle,
-        theme.accent,
+        theme.accent
       );
       x += p.pw + GAP;
     });
@@ -329,7 +329,7 @@ function buildBanner(owner, repo, stack, theme, cfg) {
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="24" y="${H - 12}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
     ${cfg.dataFields.brandLabel ? `<text x="${W - 24}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">stackfingerprint.dev</text>` : ""}
-  `,
+  `
   );
 }
 
@@ -392,7 +392,7 @@ function buildTall(owner, repo, stack, theme, cfg) {
           FS,
           IW,
           cfg.iconStyle,
-          theme.accent,
+          theme.accent
         );
         x += pw + GAP;
       });
@@ -422,7 +422,7 @@ function buildTall(owner, repo, stack, theme, cfg) {
     ${cfg.dataFields.signalCount ? `<text x="18" y="54" font-family="ui-monospace,monospace" font-size="8.5" fill="${theme.sub}" letter-spacing="1.5">${stack.length} SIGNALS DETECTED</text>` : ""}
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="18" y="${actualH - 12}" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
-  `,
+  `
   );
 }
 
@@ -514,7 +514,7 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
     ${linesVG}
     ${cfg.dataFields.footerUrl ? `<text x="22" y="${H - 12}" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
     ${cfg.dataFields.brandLabel ? `<text x="${W - 22}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">stackfingerprint.dev</text>` : ""}
-  `,
+  `
   );
 }
 
@@ -528,7 +528,7 @@ function buildWrapper(
   owner,
   repo,
   signalCount,
-  innerSVG,
+  innerSVG
 ) {
   const sW = Math.round(W * scale);
   const sH = Math.round(H * scale);

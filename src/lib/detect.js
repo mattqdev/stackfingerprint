@@ -26,7 +26,7 @@ export async function detectStack(owner, repo, fetchFn) {
   root.forEach((f) => allFiles.add(f.name));
 
   const subdirs = root.filter(
-    (f) => f.type === "dir" && KEY_SUBDIRS.includes(f.name),
+    (f) => f.type === "dir" && KEY_SUBDIRS.includes(f.name)
   );
 
   await Promise.allSettled(
@@ -36,7 +36,7 @@ export async function detectStack(owner, repo, fetchFn) {
         sub.forEach((f) => allFiles.add(f.name));
         allFiles.add(d.name); // dir itself is a signal
       } catch {}
-    }),
+    })
   );
 
   const detected = new Map();
@@ -57,10 +57,10 @@ export async function detectStack(owner, repo, fetchFn) {
   }
 
   const catOrder = Object.fromEntries(
-    Object.entries(CATEGORY_META).map(([k, v]) => [k, v.order]),
+    Object.entries(CATEGORY_META).map(([k, v]) => [k, v.order])
   );
 
   return [...detected.values()].sort(
-    (a, b) => (catOrder[a.category] ?? 99) - (catOrder[b.category] ?? 99),
+    (a, b) => (catOrder[a.category] ?? 99) - (catOrder[b.category] ?? 99)
   );
 }

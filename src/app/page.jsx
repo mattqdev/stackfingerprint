@@ -566,7 +566,7 @@ export default function Page() {
       const parsed = parseRepoInput(raw);
       if (!parsed) {
         setErrorMsg(
-          "ERR: invalid input — expected github.com/owner/repo or owner/repo",
+          "ERR: invalid input — expected github.com/owner/repo or owner/repo"
         );
         setPhase("error");
         return;
@@ -593,7 +593,7 @@ export default function Page() {
         setPhase("error");
       }
     },
-    [input, cfg],
+    [input, cfg]
   );
 
   const handleCfgChange = useCallback(
@@ -602,7 +602,7 @@ export default function Page() {
       if (repoInfo && stack.length > 0)
         setSvg(buildSVG(repoInfo.owner, repoInfo.repo, stack, newCfg));
     },
-    [repoInfo, stack],
+    [repoInfo, stack]
   );
 
   return (

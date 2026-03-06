@@ -5,7 +5,7 @@ const GH = { headers: { Accept: "application/vnd.github.v3+json" } };
 export async function fetchContents(owner, repo, path = "") {
   const res = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
-    GH,
+    GH
   );
   if (res.status === 403) throw new Error("RATE_LIMIT");
   if (res.status === 404) throw new Error("NOT_FOUND");

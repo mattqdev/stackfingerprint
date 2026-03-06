@@ -49,8 +49,14 @@
     animation: fadeUp 0.5s ease forwards;
   }
   @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   .terminal-cursor {
     display: inline-block;
@@ -62,16 +68,31 @@
     margin-left: 2px;
   }
   @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
   }
   .glow-green {
-    box-shadow: 0 0 10px rgba(51,255,51,0.15), 0 0 40px rgba(51,255,51,0.05);
+    box-shadow:
+      0 0 10px rgba(51, 255, 51, 0.15),
+      0 0 40px rgba(51, 255, 51, 0.05);
   }
-  .spin-slow { animation: spin 2s linear infinite; }
+  .spin-slow {
+    animation: spin 2s linear infinite;
+  }
   @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
-  .animate-spin-slow { animation: spin 2s linear infinite; }
+  .animate-spin-slow {
+    animation: spin 2s linear infinite;
+  }
 }
