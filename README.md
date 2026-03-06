@@ -2,6 +2,10 @@
 
 Detect any GitHub repository's tech stack and generate a beautiful, embeddable SVG card.
 
+# Example Card
+
+![Stack Fingerprint](https://stackfingerprint.vercel.app/api/card?repo=mattqdev/stackfingerprint&theme=ocean&layout=classic&size=md&icons=color&pills=round)
+
 ## Getting started
 
 ```bash
@@ -27,17 +31,17 @@ Or connect the repo in the Vercel dashboard — zero config needed.
 
 ### API parameters
 
-| Param    | Values                                           | Default    |
-|----------|--------------------------------------------------|------------|
-| `repo`   | `owner/repo`                                     | *required* |
-| `theme`  | midnight, arctic, forest, ember, ocean, obsidian, sakura, golden, rose, nord | midnight |
-| `layout` | classic, compact, banner, tall, terminal         | classic    |
-| `size`   | sm, md, lg, xl                                   | md         |
-| `icons`  | color, mono, none                                | color      |
-| `pills`  | pill, round, square                              | pill       |
-| `bg`     | none, grid, dots, noise, circuit                 | none       |
-| `accent` | bar, gradient, dots, none                        | bar        |
-| `cats`   | all, core, devtools, infra                       | all        |
+| Param    | Values                                                                       | Default    |
+| -------- | ---------------------------------------------------------------------------- | ---------- |
+| `repo`   | `owner/repo`                                                                 | _required_ |
+| `theme`  | midnight, arctic, forest, ember, ocean, obsidian, sakura, golden, rose, nord | midnight   |
+| `layout` | classic, compact, banner, tall, terminal                                     | classic    |
+| `size`   | sm, md, lg, xl                                                               | md         |
+| `icons`  | color, mono, none                                                            | color      |
+| `pills`  | pill, round, square                                                          | pill       |
+| `bg`     | none, grid, dots, noise, circuit                                             | none       |
+| `accent` | bar, gradient, dots, none                                                    | bar        |
+| `cats`   | all, core, devtools, infra                                                   | all        |
 
 ## Project structure
 
