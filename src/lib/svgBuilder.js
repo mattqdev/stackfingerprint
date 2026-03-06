@@ -217,7 +217,7 @@ function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
     ${cfg.dataFields.signalCount ? `<text x="22" y="68" font-family="ui-monospace,monospace" font-size="9" fill="${theme.sub}" letter-spacing="1.8">STACK FINGERPRINT · ${stack.length} SIGNAL${stack.length !== 1 ? "S" : ""} DETECTED</text>` : ""}
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="22" y="${H - 12}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}" letter-spacing="0.8">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
-    ${cfg.dataFields.brandLabel ? `<text x="${W - 22}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}" letter-spacing="0.8">stackfingerprint.dev</text>` : ""}
+    ${cfg.dataFields.brandLabel ? `<text x="${W - 22}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}" letter-spacing="0.8">stackfingerprint.vercel.app</text>` : ""}
   `
   );
 }
@@ -360,7 +360,7 @@ function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
     ${cfg.dataFields.signalCount ? `<text x="24" y="58" font-family="ui-monospace,monospace" font-size="9" fill="${theme.sub}" letter-spacing="1.5">STACK FINGERPRINT · ${stack.length} SIGNALS</text>` : ""}
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="24" y="${H - 12}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
-    ${cfg.dataFields.brandLabel ? `<text x="${W - 24}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">stackfingerprint.dev</text>` : ""}
+    ${cfg.dataFields.brandLabel ? `<text x="${W - 24}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">stackfingerprint.vercel.app</text>` : ""}
   `
   );
 }
@@ -541,7 +541,7 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
     <line x1="0" y1="30" x2="${W}" y2="30" stroke="${theme.border}" stroke-width="1"/>
     ${linesVG}
     ${cfg.dataFields.footerUrl ? `<text x="22" y="${H - 12}" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
-    ${cfg.dataFields.brandLabel ? `<text x="${W - 22}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">stackfingerprint.dev</text>` : ""}
+    ${cfg.dataFields.brandLabel ? `<text x="${W - 22}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">stackfingerprint.vercel.app</text>` : ""}
   `
   );
 }
