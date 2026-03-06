@@ -4,7 +4,9 @@ Detect any GitHub repository's tech stack and generate a beautiful, embeddable S
 
 # Example Card
 
-![Stack Fingerprint](https://stackfingerprint.vercel.app/api/card?repo=mattqdev/stackfingerprint&theme=ocean&layout=classic&size=md&icons=color&pills=round)
+![Stack Fingerprint](https://stackfingerprint.vercel.app/api/card?repo=physicshub/physicshub.github.io&theme=ocean&layout=classic&size=lg&icons=color&pills=round)
+
+<img src="https://stackfingerprint.vercel.app/api/card?repo=physicshub/physicshub.github.io&theme=ocean&layout=classic&size=lg&icons=color&pills=round" alt="Stack Fingerprint for physicshub/physicshub.github.io" />
 
 ## Getting started
 
