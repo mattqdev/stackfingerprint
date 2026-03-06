@@ -5,11 +5,17 @@ import { detectStack } from "../../../lib/detect";
 import { buildSVG } from "../../../lib/svgBuilder";
 import { DEFAULT_CONFIG } from "../../../data/cardOptions";
 
-export const revalidate = 300; // cache 5 min
+export const revalidate = 0; // disable ISR cache — we handle caching via headers
+
+// ── Icon colour resolution (must mirror svgBuilder.js exactly) ────────────
+function resolveIconHex(tech, iconStyle) {
+  if (iconStyle === "mono") return "ffffff";
+  return (tech.textColor ?? "#ffffff").replace("#", "").toLowerCase();
+}
 
 // ── Pre-fetch icons server-side → base64 data URIs ────────────────────────
-// This avoids the CSP "img-src data:" violation that blocks external URLs
-// inside SVG <image> tags when the SVG is served from our own origin.
+// SVG <image> tags with external https:// URLs are blocked by GitHub Camo's
+// CSP ("img-src data:"). Inlining icons as base64 data URIs is the only fix.
 async function fetchIconsAsBase64(stack, iconStyle) {
   if (iconStyle === "none") return {};
 
@@ -18,37 +24,34 @@ async function fetchIconsAsBase64(stack, iconStyle) {
   await Promise.allSettled(
     stack.map(async (tech) => {
       if (!tech.iconSlug) return;
-      const hex =
-        iconStyle === "mono"
-          ? "ffffff"
-          : (tech.textColor ?? "#ffffff").replace("#", "");
+
+      const hex = resolveIconHex(tech, iconStyle);
+      const mapKey = `${tech.iconSlug}/${hex}`;
+
+      // Deduplicate — skip if already fetched (e.g. same icon, same colour)
+      if (iconMap[mapKey] !== undefined) return;
 
       const url = `https://cdn.simpleicons.org/${tech.iconSlug}/${hex}`;
       try {
         const res = await fetch(url, {
-          next: { revalidate: 86400 }, // cache icon for 24 h
+          // Next.js data cache — keep icon for 24 h, don't block the card cache
+          next: { revalidate: 86400 },
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          iconMap[mapKey] = null; // mark as attempted so we don't retry
+          return;
+        }
         const svgText = await res.text();
         const b64 = Buffer.from(svgText).toString("base64");
-        // Key by slug+hex so the same icon in different colours stays distinct
-        iconMap[`${tech.iconSlug}/${hex}`] = `data:image/svg+xml;base64,${b64}`;
+        iconMap[mapKey] = `data:image/svg+xml;base64,${b64}`;
       } catch {
-        // Silently skip — icon will just be missing from the card
+        iconMap[mapKey] = null;
       }
     })
   );
 
   return iconMap;
 }
-
-// ── Param names match exactly what page.js writes via cfgToParams() ────────
-// Top-level keys : layout, size, theme, iconStyle, pillShape,
-//                  categoryFilter, accentLine, bgDecoration
-// dataFields      : df_repoName, df_signalCount, df_footerUrl,
-//                   df_brandLabel, df_categoryDots, df_overflowBadge
-// Legacy aliases  : icons → iconStyle, pills → pillShape,
-//                   bg → bgDecoration, accent → accentLine, cats → categoryFilter
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -63,25 +66,25 @@ export async function GET(request) {
 
   // ── dataFields ─────────────────────────────────────────────────────────
   const dataFields = { ...DEFAULT_CONFIG.dataFields };
-  const DF_KEYS = [
+  [
     "repoName",
     "signalCount",
     "footerUrl",
     "brandLabel",
     "categoryDots",
     "overflowBadge",
-  ];
-  DF_KEYS.forEach((k) => {
+  ].forEach((k) => {
     const raw = searchParams.get(`df_${k}`);
     if (raw !== null) dataFields[k] = raw === "1";
   });
 
-  // ── Build cfg — new param names with legacy alias fallbacks ───────────
+  // ── cfg — canonical param names + legacy aliases ───────────────────────
   const cfg = {
     ...DEFAULT_CONFIG,
     layout: searchParams.get("layout") ?? DEFAULT_CONFIG.layout,
     size: searchParams.get("size") ?? DEFAULT_CONFIG.size,
     theme: searchParams.get("theme") ?? DEFAULT_CONFIG.theme,
+    // new name first, legacy alias fallback
     iconStyle:
       searchParams.get("iconStyle") ??
       searchParams.get("icons") ??
@@ -108,7 +111,7 @@ export async function GET(request) {
   try {
     const stack = await detectStack(owner, repo, fetchContents);
 
-    // Fetch all icons server-side so SVG only contains data: URIs (CSP-safe)
+    // Always inline icons — no external URLs in the output SVG
     const iconBase64Map = await fetchIconsAsBase64(stack, cfg.iconStyle);
 
     const svg = buildSVG(owner, repo, stack, cfg, iconBase64Map);
@@ -117,6 +120,7 @@ export async function GET(request) {
       status: 200,
       headers: {
         "Content-Type": "image/svg+xml",
+        // 5-min browser/CDN cache; Camo re-fetches every ~5 min
         "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
         "Access-Control-Allow-Origin": "*",
       },

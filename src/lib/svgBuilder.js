@@ -3,14 +3,21 @@ import { THEMES } from "../data/themes";
 import { LAYOUTS, SIZES, CATEGORY_FILTERS } from "../data/cardOptions";
 import { CATEGORY_META } from "../data/signals";
 
-// ── Icon URL resolver ──────────────────────────────────────────────────────
-// iconBase64Map is passed from the API route (server-side) and contains
-// pre-fetched base64 data URIs, making the SVG fully CSP-safe.
-// In the browser preview it is omitted and we fall back to the CDN URL.
-function SI(slug, hex, iconBase64Map) {
-  const key = `${slug}/${hex.replace("#", "")}`;
-  if (iconBase64Map && iconBase64Map[key]) return iconBase64Map[key];
-  return `https://cdn.simpleicons.org/${slug}/${hex.replace("#", "")}`;
+// ── Icon URL / data-URI resolver ───────────────────────────────────────────
+// iconBase64Map keys are "slug/hex" (lowercase, no #).
+// When the map is provided (API route, server-side) we use the pre-fetched
+// base64 data URI so the SVG contains no external URLs (fixes Camo CSP).
+// When the map is null/undefined (browser preview) we fall back to the CDN.
+function resolveIcon(slug, rawHex, iconBase64Map) {
+  const hex = rawHex.replace("#", "").toLowerCase();
+  if (iconBase64Map) {
+    const val = iconBase64Map[`${slug}/${hex}`];
+    // val is null  → fetch failed, skip icon
+    // val is string → use data URI
+    if (val === null) return null;
+    if (val) return val;
+  }
+  return `https://cdn.simpleicons.org/${slug}/${hex}`;
 }
 
 const esc = (s) =>
@@ -67,19 +74,23 @@ function renderPill(
   const px = x.toFixed(1);
   const rad = pillR.toFixed(1);
   const fillColor = iconStyle === "mono" ? accentColor : p.color;
-  const textC = iconStyle === "mono" ? "#ffffff" : p.textColor;
-  const iconHex = textC.replace("#", "");
+  const textC = iconStyle === "mono" ? "#ffffff" : (p.textColor ?? "#ffffff");
+  const iconHex = textC.replace("#", "").toLowerCase();
 
-  const iconSVG =
-    iconStyle !== "none"
-      ? `<image href="${SI(p.iconSlug, iconHex, iconBase64Map)}" x="${(+px + 6).toFixed(1)}" y="${(y + (pillH - iconW) / 2).toFixed(1)}" width="${iconW}" height="${iconW}"/>`
-      : "";
+  let iconSVG = "";
+  if (iconStyle !== "none" && p.iconSlug) {
+    const href = resolveIcon(p.iconSlug, iconHex, iconBase64Map);
+    if (href) {
+      iconSVG = `<image href="${href}" x="${(+px + 6).toFixed(1)}" y="${(y + (pillH - iconW) / 2).toFixed(1)}" width="${iconW}" height="${iconW}"/>`;
+    }
+  }
 
-  const textX =
-    iconStyle !== "none"
-      ? (+px + iconW + 12).toFixed(1)
-      : (+px + p.pw / 2).toFixed(1);
-  const textAnchor = iconStyle !== "none" ? "start" : "middle";
+  // If no icon (missing slug or failed fetch), centre the text
+  const hasIcon = iconSVG !== "";
+  const textX = hasIcon
+    ? (+px + iconW + 12).toFixed(1)
+    : (+px + p.pw / 2).toFixed(1);
+  const textAnchor = hasIcon ? "start" : "middle";
 
   return `<rect x="${px}" y="${y}" width="${p.pw.toFixed(1)}" height="${pillH}" rx="${rad}" fill="${fillColor}" opacity="0.92"/>
       ${iconSVG}
@@ -384,16 +395,15 @@ function buildTall(owner, repo, stack, theme, cfg, iconBase64Map) {
     groups[t.category].push(t);
   });
 
-  let pillsSVG = "";
-  let curY = 76;
+  let pillsSVG = "",
+    curY = 76;
 
   Object.entries(groups)
     .sort(([a], [b]) => (catOrder[a] ?? 99) - (catOrder[b] ?? 99))
     .forEach(([cat, items]) => {
       const catLabel = CATEGORY_META[cat]?.label ?? cat;
-      pillsSVG += `<text x="18" y="${curY}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="2" text-transform="uppercase">${catLabel.toUpperCase()}</text>`;
+      pillsSVG += `<text x="18" y="${curY}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="2">${catLabel.toUpperCase()}</text>`;
       curY += 14;
-
       let x = 18;
       items.forEach((p, i) => {
         const labelW = p.label.length * FS * 0.63 + IW + 24;
@@ -446,7 +456,7 @@ function buildTall(owner, repo, stack, theme, cfg, iconBase64Map) {
   );
 }
 
-// ── Layout: TERMINAL ──────────────────────────────────────────────────────
+// ── Layout: TERMINAL (text only — no icons needed) ────────────────────────
 function buildTerminal(owner, repo, stack, theme, cfg) {
   const W = 600,
     H = 280;
@@ -485,7 +495,7 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
     .forEach(([cat, items]) => {
       const label = (CATEGORY_META[cat]?.label ?? cat).padEnd(12);
       const vals = items.map((i) => i.label).join(", ");
-      lines.push({ label, vals, cat });
+      lines.push({ label, vals });
     });
 
   lines.push({ prompt: "", cmd: "", color: "transparent" });
@@ -495,12 +505,12 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
     color: theme.accent,
   });
 
-  const lineH = 18;
-  const startY = 54;
+  const lineH = 18,
+    startY = 54;
   let linesVG = "";
   lines.forEach((ln, i) => {
     const y = startY + i * lineH;
-    if (ln.prompt !== undefined && ln.cmd !== undefined) {
+    if (ln.prompt !== undefined) {
       linesVG += `<text x="22" y="${y}" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="11" fill="${ln.color}">
         <tspan fill="${theme.accent}">${ln.prompt} </tspan><tspan>${esc(ln.cmd)}</tspan>
       </text>`;
@@ -552,11 +562,10 @@ function buildWrapper(
     typeof scale === "number" && isFinite(scale) && scale > 0 ? scale : 1;
   const sW = Math.round(W * safeScale);
   const sH = Math.round(H * safeScale);
-  const accentLineW = 52;
   const decSVG = bgDecoration(cfg.bgDecoration, W, H, theme.accent);
   const accSVG =
     cfg.accentLine !== "none"
-      ? accentLine(cfg.accentLine, 22, 16, accentLineW, theme.accent)
+      ? accentLine(cfg.accentLine, 22, 16, 52, theme.accent)
       : "";
 
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${sW}" height="${sH}" viewBox="0 0 ${W} ${H}">
@@ -582,9 +591,9 @@ function buildWrapper(
 </svg>`;
 }
 
-// ── Main export ─────────────────────────────────────────────────────────────
-// iconBase64Map is optional — passed by the API route for CSP-safe server rendering,
-// omitted by the browser preview (falls back to CDN URLs).
+// ── Main export ────────────────────────────────────────────────────────────
+// iconBase64Map: passed by the API route (server-side, CSP-safe).
+//               null/undefined in the browser preview (falls back to CDN URLs).
 export function buildSVG(owner, repo, stack, cfg, iconBase64Map = null) {
   const theme = THEMES[cfg.theme] ?? THEMES.midnight;
 
