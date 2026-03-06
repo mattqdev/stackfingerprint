@@ -597,6 +597,10 @@ function buildWrapper(
 export function buildSVG(owner, repo, stack, cfg, iconBase64Map = null) {
   const theme = THEMES[cfg.theme] ?? THEMES.midnight;
 
+  if (cfg.layout === "terminal") {
+    cfg.accentLine = "none";
+  }
+
   let filteredStack = stack;
   if (cfg.categoryFilter !== "all") {
     const filter = CATEGORY_FILTERS.find((f) => f.id === cfg.categoryFilter);
