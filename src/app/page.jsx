@@ -256,7 +256,7 @@ function GitHubCTA() {
     >
       {/* Left: prompt text */}
       <div style={{ fontFamily: "monospace", fontSize: "11px" }}>
-        <span style={{ color: "rgba(51,255,51,0.4)" }}>$ # </span>
+        <span style={{ color: "rgba(51,255,51,0.4)" }}>$ </span>
         <span style={{ color: "rgba(51,255,51,0.7)" }}>
           if this tool saved you time, a ⭐ goes a long way
         </span>
@@ -620,6 +620,9 @@ export default function Page() {
           opacity: booted ? 1 : 0,
           transition: "opacity 0.4s ease",
           fontFamily: "'JetBrains Mono', monospace",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
         }}
       >
         {/* Top bar */}
@@ -655,9 +658,8 @@ export default function Page() {
           style={{
             position: "relative",
             zIndex: 10,
-            maxWidth: "1100px",
-            margin: "0 auto",
             padding: "96px 24px 96px",
+            width: "100%",
           }}
         >
           <Hero />
@@ -700,7 +702,7 @@ export default function Page() {
                   position: "sticky",
                   top: "56px",
                   flexShrink: 0,
-                  width: "340px",
+                  width: "50%",
                   display: "flex",
                   flexDirection: "column",
                   gap: "16px",

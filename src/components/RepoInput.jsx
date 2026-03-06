@@ -6,7 +6,7 @@ const EXAMPLES = [
   "vercel/next.js",
   "vitejs/vite",
   "supabase/supabase",
-  "denoland/deno",
+  "physicshub/physicshub.github.io",
   "django/django",
   "rust-lang/rust",
 ];
@@ -28,8 +28,9 @@ export default function RepoInput({ value, onChange, onSubmit, loading }) {
         }}
       >
         <span style={{ color: G }}>$</span>
-        <span>stackfp analyze</span>
-        <span style={{ color: "rgba(51,255,51,0.25)" }}>--repo</span>
+        <span style={{ color: "rgba(51,255,51,0.25)" }}>
+          Insert your repo here:
+        </span>
       </div>
 
       {/* Input row */}
