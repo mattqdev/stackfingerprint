@@ -20,6 +20,8 @@ const S = {
   glow: "0 0 8px rgba(51,255,51,0.5)",
 };
 
+const GITHUB_REPO = "https://github.com/mattqdev/stackfingerprint";
+
 function Scanlines() {
   return (
     <div
@@ -226,38 +228,125 @@ function TerminalSection({ label, lineNumber, children }) {
   );
 }
 
+function GitHubCTA() {
+  const embedSnippet = `[![Stack Fingerprint](https://stackfingerprint.com/api/card/mattqdev/stackfingerprint)](${GITHUB_REPO})`;
+
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(embedSnippet).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div
+      style={{
+        marginBottom: "40px",
+        border: "1px solid rgba(51,255,51,0.2)",
+        background: "rgba(51,255,51,0.02)",
+        padding: "16px 20px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
+        gap: "12px",
+      }}
+    >
+      {/* Left: prompt text */}
+      <div style={{ fontFamily: "monospace", fontSize: "11px" }}>
+        <span style={{ color: "rgba(51,255,51,0.4)" }}>$ # </span>
+        <span style={{ color: "rgba(51,255,51,0.7)" }}>
+          if this tool saved you time, a ⭐ goes a long way
+        </span>
+      </div>
+
+      {/* Right: action buttons */}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        {/* Star button */}
+        <a
+          href={GITHUB_REPO}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "7px",
+            padding: "6px 14px",
+            border: "1px solid rgba(51,255,51,0.45)",
+            background: "rgba(51,255,51,0.06)",
+            color: S.green,
+            fontSize: "11px",
+            fontFamily: "monospace",
+            textDecoration: "none",
+            textShadow: S.glow,
+            cursor: "pointer",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(51,255,51,0.12)";
+            e.currentTarget.style.borderColor = S.green;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(51,255,51,0.06)";
+            e.currentTarget.style.borderColor = "rgba(51,255,51,0.45)";
+          }}
+        >
+          {/* Star icon */}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+          </svg>
+          STAR ON GITHUB
+        </a>
+
+        {/* Embed CTA */}
+        <button
+          onClick={handleCopy}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "7px",
+            padding: "6px 14px",
+            border: "1px solid rgba(51,255,51,0.2)",
+            background: "transparent",
+            color: "rgba(51,255,51,0.55)",
+            fontSize: "11px",
+            fontFamily: "monospace",
+            cursor: "pointer",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "rgba(51,255,51,0.4)";
+            e.currentTarget.style.color = "rgba(51,255,51,0.8)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "rgba(51,255,51,0.2)";
+            e.currentTarget.style.color = "rgba(51,255,51,0.55)";
+          }}
+        >
+          {/* Clipboard icon */}
+          <svg
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          {copied ? "COPIED!" : "COPY EMBED"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Hero() {
   return (
     <header style={{ marginBottom: "56px" }}>
-      {/* Online badge */}
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "8px",
-          padding: "4px 12px",
-          border: "1px solid rgba(51,255,51,0.25)",
-          color: S.green,
-          fontSize: "10px",
-          textShadow: S.glow,
-          marginBottom: "20px",
-          fontFamily: "monospace",
-        }}
-      >
-        <span
-          style={{
-            width: "6px",
-            height: "6px",
-            borderRadius: "50%",
-            background: S.green,
-            boxShadow: "0 0 6px #33ff33",
-            display: "inline-block",
-            animation: "pulse 2s ease-in-out infinite",
-          }}
-        />
-        SYSTEM ONLINE — STACK ANALYSIS ENGINE READY
-      </div>
-
       <h1
         style={{
           fontSize: "clamp(28px, 5vw, 48px)",
@@ -330,6 +419,9 @@ function Hero() {
           </div>
         ))}
       </div>
+
+      {/* GitHub CTA */}
+      <GitHubCTA />
     </header>
   );
 }
@@ -540,7 +632,7 @@ export default function Page() {
               display: "inline-flex",
               gap: "4px",
             }}
-            href="https://github.com/mattqdev/stackfingerprint"
+            href={GITHUB_REPO}
           >
             <svg
               role="img"
