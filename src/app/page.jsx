@@ -254,7 +254,6 @@ function GitHubCTA() {
         gap: "12px",
       }}
     >
-      {/* Left: prompt text */}
       <div style={{ fontFamily: "monospace", fontSize: "11px" }}>
         <span style={{ color: "rgba(51,255,51,0.4)" }}>$ </span>
         <span style={{ color: "rgba(51,255,51,0.7)" }}>
@@ -262,9 +261,7 @@ function GitHubCTA() {
         </span>
       </div>
 
-      {/* Right: action buttons */}
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-        {/* Star button */}
         <a
           href={GITHUB_REPO}
           target="_blank"
@@ -293,14 +290,12 @@ function GitHubCTA() {
             e.currentTarget.style.borderColor = "rgba(51,255,51,0.45)";
           }}
         >
-          {/* Star icon */}
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
           </svg>
           STAR ON GITHUB
         </a>
 
-        {/* Embed CTA */}
         <button
           onClick={handleCopy}
           style={{
@@ -325,7 +320,6 @@ function GitHubCTA() {
             e.currentTarget.style.color = "rgba(51,255,51,0.55)";
           }}
         >
-          {/* Clipboard icon */}
           <svg
             width="11"
             height="11"
@@ -386,7 +380,6 @@ function Hero() {
         professional SVG embed for your README — zero auth required.
       </p>
 
-      {/* Feature pills */}
       <div
         style={{
           display: "flex",
@@ -420,7 +413,6 @@ function Hero() {
         ))}
       </div>
 
-      {/* GitHub CTA */}
       <GitHubCTA />
     </header>
   );
@@ -653,7 +645,6 @@ export default function Page() {
           <StatusClock />
         </StatusBar>
 
-        {/* Main content */}
         <div
           style={{
             position: "relative",
@@ -664,7 +655,6 @@ export default function Page() {
         >
           <Hero />
 
-          {/* Input */}
           <div style={{ marginBottom: "40px" }}>
             <RepoInput
               value={input}
@@ -674,7 +664,6 @@ export default function Page() {
             />
           </div>
 
-          {/* Error */}
           {phase === "error" && (
             <div
               style={{
@@ -691,27 +680,12 @@ export default function Page() {
             </div>
           )}
 
-          {/* Results — two-column: sticky card left, scrollable config right */}
+          {/* Results — two-column: inputs/config left, sticky card right */}
           {phase === "done" && repoInfo && (
             <div
               style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}
             >
-              {/* LEFT — sticky card preview */}
-              <div
-                style={{
-                  position: "sticky",
-                  top: "56px",
-                  flexShrink: 0,
-                  width: "50%",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "16px",
-                }}
-              >
-                <StickyCardPreview svg={svg} repoInfo={repoInfo} cfg={cfg} />
-              </div>
-
-              {/* RIGHT — scrollable sections */}
+              {/* LEFT — scrollable sections (Inputs & Config) */}
               <div
                 style={{
                   flex: 1,
@@ -735,13 +709,27 @@ export default function Page() {
                   <CardConfigurator cfg={cfg} onChange={handleCfgChange} />
                 </TerminalSection>
               </div>
+
+              {/* RIGHT — sticky card preview */}
+              <div
+                style={{
+                  position: "sticky",
+                  top: "56px",
+                  flexShrink: 0,
+                  width: "50%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                }}
+              >
+                <StickyCardPreview svg={svg} repoInfo={repoInfo} cfg={cfg} />
+              </div>
             </div>
           )}
 
           {phase !== "loading" && phase !== "done" && <HowItWorks />}
         </div>
 
-        {/* Bottom bar */}
         <StatusBar position="bottom">
           <span>MEM: 2.1MB</span>
           <span>SIG: 60+ PATTERNS LOADED</span>
