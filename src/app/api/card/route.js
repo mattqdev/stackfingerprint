@@ -7,26 +7,55 @@ import { DEFAULT_CONFIG } from "../../../data/cardOptions";
 
 export const revalidate = 300; // cache 5 min
 
+// ── Param names match exactly what page.js writes via cfgToParams() ────────
+// Top-level keys: layout, size, theme, iconStyle, pillShape,
+//                 categoryFilter, accentLine, bgDecoration
+// dataFields booleans: df_repoName, df_signalCount, df_footerUrl,
+//                      df_brandLabel, df_categoryDots, df_overflowBadge
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const repoParam = searchParams.get("repo") ?? "";
 
+  // ── Resolve owner/repo ─────────────────────────────────────────────────
+  // Supports both ?repo=owner/repo and path-style /api/card/owner/repo
+  const repoParam = searchParams.get("repo") ?? "";
   const parts = repoParam.split("/").filter(Boolean);
   if (parts.length < 2) {
     return new NextResponse("Missing ?repo=owner/repo", { status: 400 });
   }
   const [owner, repo] = parts;
 
+  // ── Build cfg from params, falling back to DEFAULT_CONFIG ──────────────
+  const dataFields = { ...DEFAULT_CONFIG.dataFields };
+
+  // Parse df_* boolean overrides
+  const DF_KEYS = [
+    "repoName",
+    "signalCount",
+    "footerUrl",
+    "brandLabel",
+    "categoryDots",
+    "overflowBadge",
+  ];
+  DF_KEYS.forEach((k) => {
+    const raw = searchParams.get(`df_${k}`);
+    if (raw !== null) dataFields[k] = raw === "1";
+  });
+
   const cfg = {
     ...DEFAULT_CONFIG,
-    theme: searchParams.get("theme") ?? "midnight",
-    layout: searchParams.get("layout") ?? "classic",
-    size: searchParams.get("size") ?? "md",
-    iconStyle: searchParams.get("icons") ?? "color",
-    pillShape: searchParams.get("pills") ?? "pill",
-    bgDecoration: searchParams.get("bg") ?? "none",
-    accentLine: searchParams.get("accent") ?? "bar",
-    categoryFilter: searchParams.get("cats") ?? "all",
+    // Top-level knobs — param names are identical to cfgToParams() in page.js
+    layout: searchParams.get("layout") ?? DEFAULT_CONFIG.layout,
+    size: searchParams.get("size") ?? DEFAULT_CONFIG.size,
+    theme: searchParams.get("theme") ?? DEFAULT_CONFIG.theme,
+    iconStyle: searchParams.get("iconStyle") ?? DEFAULT_CONFIG.iconStyle,
+    pillShape: searchParams.get("pillShape") ?? DEFAULT_CONFIG.pillShape,
+    categoryFilter:
+      searchParams.get("categoryFilter") ?? DEFAULT_CONFIG.categoryFilter,
+    accentLine: searchParams.get("accentLine") ?? DEFAULT_CONFIG.accentLine,
+    bgDecoration:
+      searchParams.get("bgDecoration") ?? DEFAULT_CONFIG.bgDecoration,
+    dataFields,
   };
 
   try {
