@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { fetchContents, fetchRepoMeta, parseRepoInput } from "../lib/github";
 import { detectStack } from "../lib/detect";
 import { buildSVG } from "../lib/svgBuilder";
@@ -21,6 +21,59 @@ const S = {
 };
 
 const GITHUB_REPO = "https://github.com/mattqdev/stackfingerprint";
+
+// ── URL ↔ Config helpers ───────────────────────────────────────────────────
+
+// Flat keys that map 1:1 to search params
+const TOP_KEYS = [
+  "layout",
+  "size",
+  "theme",
+  "iconStyle",
+  "pillShape",
+  "categoryFilter",
+  "accentLine",
+  "bgDecoration",
+];
+
+// dataFields booleans use "df_<id>" as param names
+function cfgToParams(repo, cfg) {
+  const p = new URLSearchParams();
+
+  if (repo) p.set("repo", repo);
+
+  TOP_KEYS.forEach((k) => {
+    if (cfg[k] !== DEFAULT_CONFIG[k]) p.set(k, cfg[k]);
+  });
+
+  Object.entries(cfg.dataFields).forEach(([k, v]) => {
+    if (v !== DEFAULT_CONFIG.dataFields[k]) p.set(`df_${k}`, v ? "1" : "0");
+  });
+
+  return p;
+}
+
+function paramsToState(params) {
+  const repo = params.get("repo") ?? "";
+
+  const cfg = {
+    ...DEFAULT_CONFIG,
+    dataFields: { ...DEFAULT_CONFIG.dataFields },
+  };
+
+  TOP_KEYS.forEach((k) => {
+    if (params.has(k)) cfg[k] = params.get(k);
+  });
+
+  Object.keys(DEFAULT_CONFIG.dataFields).forEach((k) => {
+    const raw = params.get(`df_${k}`);
+    if (raw !== null) cfg.dataFields[k] = raw === "1";
+  });
+
+  return { repo, cfg };
+}
+
+// ── Components ─────────────────────────────────────────────────────────────
 
 function Scanlines() {
   return (
@@ -187,7 +240,6 @@ function StatusClock() {
 function TerminalSection({ label, lineNumber, children }) {
   return (
     <div style={{ border: "1px solid rgba(51,255,51,0.18)" }}>
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -222,7 +274,6 @@ function TerminalSection({ label, lineNumber, children }) {
           ))}
         </div>
       </div>
-      {/* Body */}
       <div style={{ padding: "24px" }}>{children}</div>
     </div>
   );
@@ -230,7 +281,6 @@ function TerminalSection({ label, lineNumber, children }) {
 
 function GitHubCTA() {
   const embedSnippet = `[![Stack Fingerprint](https://stackfingerprint.com/api/card/mattqdev/stackfingerprint)](${GITHUB_REPO})`;
-
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -523,6 +573,8 @@ function HowItWorks() {
   );
 }
 
+// ── Page ───────────────────────────────────────────────────────────────────
+
 export default function Page() {
   const [input, setInput] = useState("");
   const [phase, setPhase] = useState("idle");
@@ -535,13 +587,44 @@ export default function Page() {
   const [booted, setBooted] = useState(false);
   const [showBoot, setShowBoot] = useState(true);
 
+  // Prevent the URL-sync effect from firing on the very first render
+  // (we write to URL only after user interaction, not on initial hydration)
+  const isFirstRender = useRef(true);
+
+  // ── 1. On mount: read URL params → restore state & auto-generate ──────
   useEffect(() => {
     const already = sessionStorage.getItem("sf_booted");
     if (already) {
       setShowBoot(false);
       setBooted(true);
     }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.toString()) {
+      const { repo, cfg: restoredCfg } = paramsToState(params);
+      if (repo) {
+        setInput(repo);
+        setCfg(restoredCfg);
+        // Delay slightly so state settles before generate runs
+        setTimeout(() => generateWithArgs(repo, restoredCfg), 50);
+      }
+    }
   }, []);
+
+  // ── 2. On every cfg / input change: push to URL (skip first render) ───
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    const params = cfgToParams(input, cfg);
+    const newSearch = params.toString() ? `?${params.toString()}` : "";
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${newSearch}`
+    );
+  }, [cfg, input]);
 
   const handleBootComplete = () => {
     setTimeout(() => {
@@ -551,41 +634,45 @@ export default function Page() {
     }, 300);
   };
 
+  // Core generate that accepts explicit args (used for URL restoration)
+  const generateWithArgs = useCallback(async (rawInput, activeCfg) => {
+    const parsed = parseRepoInput(rawInput);
+    if (!parsed) {
+      setErrorMsg(
+        "ERR: invalid input — expected github.com/owner/repo or owner/repo"
+      );
+      setPhase("error");
+      return;
+    }
+    setPhase("loading");
+    setErrorMsg("");
+    try {
+      const [detected, repoMeta] = await Promise.all([
+        detectStack(parsed.owner, parsed.repo, fetchContents),
+        fetchRepoMeta(parsed.owner, parsed.repo),
+      ]);
+      const card = buildSVG(parsed.owner, parsed.repo, detected, activeCfg);
+      setSvg(card);
+      setStack(detected);
+      setRepoInfo(parsed);
+      setMeta(repoMeta);
+      setPhase("done");
+    } catch (e) {
+      const msgs = {
+        RATE_LIMIT: "ERR: GitHub rate limit reached — retry in ~60s",
+        NOT_FOUND: "ERR: repository not found or is private",
+      };
+      setErrorMsg(msgs[e.message] ?? "ERR: unexpected failure");
+      setPhase("error");
+    }
+  }, []);
+
   const generate = useCallback(
     async (overrideInput) => {
       const raw = typeof overrideInput === "string" ? overrideInput : input;
-
-      const parsed = parseRepoInput(raw);
-      if (!parsed) {
-        setErrorMsg(
-          "ERR: invalid input — expected github.com/owner/repo or owner/repo"
-        );
-        setPhase("error");
-        return;
-      }
-      setPhase("loading");
-      setErrorMsg("");
-      try {
-        const [detected, repoMeta] = await Promise.all([
-          detectStack(parsed.owner, parsed.repo, fetchContents),
-          fetchRepoMeta(parsed.owner, parsed.repo),
-        ]);
-        const card = buildSVG(parsed.owner, parsed.repo, detected, cfg);
-        setSvg(card);
-        setStack(detected);
-        setRepoInfo(parsed);
-        setMeta(repoMeta);
-        setPhase("done");
-      } catch (e) {
-        const msgs = {
-          RATE_LIMIT: "ERR: GitHub rate limit reached — retry in ~60s",
-          NOT_FOUND: "ERR: repository not found or is private",
-        };
-        setErrorMsg(msgs[e.message] ?? "ERR: unexpected failure");
-        setPhase("error");
-      }
+      await generateWithArgs(raw, cfg);
     },
-    [input, cfg]
+    [input, cfg, generateWithArgs]
   );
 
   const handleCfgChange = useCallback(
@@ -680,12 +767,10 @@ export default function Page() {
             </div>
           )}
 
-          {/* Results — two-column: inputs/config left, sticky card right */}
           {phase === "done" && repoInfo && (
             <div
               style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}
             >
-              {/* LEFT — scrollable sections (Inputs & Config) */}
               <div
                 style={{
                   flex: 1,
@@ -710,7 +795,6 @@ export default function Page() {
                 </TerminalSection>
               </div>
 
-              {/* RIGHT — sticky card preview */}
               <div
                 style={{
                   position: "sticky",
