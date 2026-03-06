@@ -6,7 +6,7 @@ import { buildSVG } from "../lib/svgBuilder";
 import { DEFAULT_CONFIG } from "../data/cardOptions";
 import RepoInput from "../components/RepoInput";
 import CardConfigurator from "../components/CardConfigurator.jsx";
-import CardPreview from "../components/CardPreview";
+import { StickyCardPreview, CardExport } from "../components/CardPreview";
 import ShieldBadges from "../components/ShieldBadges";
 
 const S = {
@@ -295,7 +295,7 @@ export default function Page() {
         </StatusBar>
 
         {/* Main content */}
-        <div style={{ position: "relative", zIndex: 10, maxWidth: "760px", margin: "0 auto", padding: "96px 24px 96px" }}>
+        <div style={{ position: "relative", zIndex: 10, maxWidth: "1100px", margin: "0 auto", padding: "96px 24px 96px" }}>
           <Hero />
 
           {/* Input */}
@@ -310,18 +310,36 @@ export default function Page() {
             </div>
           )}
 
-          {/* Results */}
+          {/* Results — two-column: sticky card left, scrollable config right */}
           {phase === "done" && repoInfo && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <TerminalSection label="REPO.INFO" lineNumber="01">
-                <ShieldBadges meta={meta} owner={repoInfo.owner} repo={repoInfo.repo} />
-              </TerminalSection>
-              <TerminalSection label="CARD.OUTPUT" lineNumber="02">
-                <CardPreview svg={svg} repoInfo={repoInfo} cfg={cfg} />
-              </TerminalSection>
-              <TerminalSection label="CONFIG.ENGINE" lineNumber="03">
-                <CardConfigurator cfg={cfg} onChange={handleCfgChange} />
-              </TerminalSection>
+            <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+
+              {/* LEFT — sticky card preview */}
+              <div style={{
+                position: "sticky",
+                top: "56px",
+                flexShrink: 0,
+                width: "340px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}>
+                <StickyCardPreview svg={svg} repoInfo={repoInfo} cfg={cfg} />
+              </div>
+
+              {/* RIGHT — scrollable sections */}
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "16px" }}>
+                <TerminalSection label="REPO.INFO" lineNumber="01">
+                  <ShieldBadges meta={meta} owner={repoInfo.owner} repo={repoInfo.repo} />
+                </TerminalSection>
+                <TerminalSection label="EMBED.EXPORT" lineNumber="02">
+                  <CardExport svg={svg} repoInfo={repoInfo} cfg={cfg} />
+                </TerminalSection>
+                <TerminalSection label="CONFIG.ENGINE" lineNumber="03">
+                  <CardConfigurator cfg={cfg} onChange={handleCfgChange} />
+                </TerminalSection>
+              </div>
+
             </div>
           )}
 
