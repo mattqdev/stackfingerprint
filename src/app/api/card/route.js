@@ -7,17 +7,53 @@ import { DEFAULT_CONFIG } from "../../../data/cardOptions";
 
 export const revalidate = 300; // cache 5 min
 
+// ── Pre-fetch icons server-side → base64 data URIs ────────────────────────
+// This avoids the CSP "img-src data:" violation that blocks external URLs
+// inside SVG <image> tags when the SVG is served from our own origin.
+async function fetchIconsAsBase64(stack, iconStyle) {
+  if (iconStyle === "none") return {};
+
+  const iconMap = {};
+
+  await Promise.allSettled(
+    stack.map(async (tech) => {
+      if (!tech.iconSlug) return;
+      const hex =
+        iconStyle === "mono"
+          ? "ffffff"
+          : (tech.textColor ?? "#ffffff").replace("#", "");
+
+      const url = `https://cdn.simpleicons.org/${tech.iconSlug}/${hex}`;
+      try {
+        const res = await fetch(url, {
+          next: { revalidate: 86400 }, // cache icon for 24 h
+        });
+        if (!res.ok) return;
+        const svgText = await res.text();
+        const b64 = Buffer.from(svgText).toString("base64");
+        // Key by slug+hex so the same icon in different colours stays distinct
+        iconMap[`${tech.iconSlug}/${hex}`] = `data:image/svg+xml;base64,${b64}`;
+      } catch {
+        // Silently skip — icon will just be missing from the card
+      }
+    })
+  );
+
+  return iconMap;
+}
+
 // ── Param names match exactly what page.js writes via cfgToParams() ────────
-// Top-level keys: layout, size, theme, iconStyle, pillShape,
-//                 categoryFilter, accentLine, bgDecoration
-// dataFields booleans: df_repoName, df_signalCount, df_footerUrl,
-//                      df_brandLabel, df_categoryDots, df_overflowBadge
+// Top-level keys : layout, size, theme, iconStyle, pillShape,
+//                  categoryFilter, accentLine, bgDecoration
+// dataFields      : df_repoName, df_signalCount, df_footerUrl,
+//                   df_brandLabel, df_categoryDots, df_overflowBadge
+// Legacy aliases  : icons → iconStyle, pills → pillShape,
+//                   bg → bgDecoration, accent → accentLine, cats → categoryFilter
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
 
   // ── Resolve owner/repo ─────────────────────────────────────────────────
-  // Supports both ?repo=owner/repo and path-style /api/card/owner/repo
   const repoParam = searchParams.get("repo") ?? "";
   const parts = repoParam.split("/").filter(Boolean);
   if (parts.length < 2) {
@@ -25,10 +61,8 @@ export async function GET(request) {
   }
   const [owner, repo] = parts;
 
-  // ── Build cfg from params, falling back to DEFAULT_CONFIG ──────────────
+  // ── dataFields ─────────────────────────────────────────────────────────
   const dataFields = { ...DEFAULT_CONFIG.dataFields };
-
-  // Parse df_* boolean overrides
   const DF_KEYS = [
     "repoName",
     "signalCount",
@@ -42,25 +76,42 @@ export async function GET(request) {
     if (raw !== null) dataFields[k] = raw === "1";
   });
 
+  // ── Build cfg — new param names with legacy alias fallbacks ───────────
   const cfg = {
     ...DEFAULT_CONFIG,
-    // Top-level knobs — param names are identical to cfgToParams() in page.js
     layout: searchParams.get("layout") ?? DEFAULT_CONFIG.layout,
     size: searchParams.get("size") ?? DEFAULT_CONFIG.size,
     theme: searchParams.get("theme") ?? DEFAULT_CONFIG.theme,
-    iconStyle: searchParams.get("iconStyle") ?? DEFAULT_CONFIG.iconStyle,
-    pillShape: searchParams.get("pillShape") ?? DEFAULT_CONFIG.pillShape,
+    iconStyle:
+      searchParams.get("iconStyle") ??
+      searchParams.get("icons") ??
+      DEFAULT_CONFIG.iconStyle,
+    pillShape:
+      searchParams.get("pillShape") ??
+      searchParams.get("pills") ??
+      DEFAULT_CONFIG.pillShape,
     categoryFilter:
-      searchParams.get("categoryFilter") ?? DEFAULT_CONFIG.categoryFilter,
-    accentLine: searchParams.get("accentLine") ?? DEFAULT_CONFIG.accentLine,
+      searchParams.get("categoryFilter") ??
+      searchParams.get("cats") ??
+      DEFAULT_CONFIG.categoryFilter,
+    accentLine:
+      searchParams.get("accentLine") ??
+      searchParams.get("accent") ??
+      DEFAULT_CONFIG.accentLine,
     bgDecoration:
-      searchParams.get("bgDecoration") ?? DEFAULT_CONFIG.bgDecoration,
+      searchParams.get("bgDecoration") ??
+      searchParams.get("bg") ??
+      DEFAULT_CONFIG.bgDecoration,
     dataFields,
   };
 
   try {
     const stack = await detectStack(owner, repo, fetchContents);
-    const svg = buildSVG(owner, repo, stack, cfg);
+
+    // Fetch all icons server-side so SVG only contains data: URIs (CSP-safe)
+    const iconBase64Map = await fetchIconsAsBase64(stack, cfg.iconStyle);
+
+    const svg = buildSVG(owner, repo, stack, cfg, iconBase64Map);
 
     return new NextResponse(svg, {
       status: 200,

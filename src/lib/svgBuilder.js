@@ -3,8 +3,15 @@ import { THEMES } from "../data/themes";
 import { LAYOUTS, SIZES, CATEGORY_FILTERS } from "../data/cardOptions";
 import { CATEGORY_META } from "../data/signals";
 
-const SI = (slug, hex) =>
-  `https://cdn.simpleicons.org/${slug}/${hex.replace("#", "")}`;
+// ── Icon URL resolver ──────────────────────────────────────────────────────
+// iconBase64Map is passed from the API route (server-side) and contains
+// pre-fetched base64 data URIs, making the SVG fully CSP-safe.
+// In the browser preview it is omitted and we fall back to the CDN URL.
+function SI(slug, hex, iconBase64Map) {
+  const key = `${slug}/${hex.replace("#", "")}`;
+  if (iconBase64Map && iconBase64Map[key]) return iconBase64Map[key];
+  return `https://cdn.simpleicons.org/${slug}/${hex.replace("#", "")}`;
+}
 
 const esc = (s) =>
   String(s)
@@ -16,7 +23,6 @@ const esc = (s) =>
 // ── Safe scale extractor ───────────────────────────────────────────────────
 function getSafeScale(sizeObj) {
   if (!sizeObj) return 1;
-  // Support whatever property name the SIZES array uses
   const raw =
     sizeObj.scale ?? sizeObj.multiplier ?? sizeObj.value ?? sizeObj.factor ?? 1;
   return typeof raw === "number" && isFinite(raw) && raw > 0 ? raw : 1;
@@ -55,7 +61,8 @@ function renderPill(
   fontSize,
   iconW,
   iconStyle,
-  accentColor
+  accentColor,
+  iconBase64Map
 ) {
   const px = x.toFixed(1);
   const rad = pillR.toFixed(1);
@@ -65,7 +72,7 @@ function renderPill(
 
   const iconSVG =
     iconStyle !== "none"
-      ? `<image href="${SI(p.iconSlug, iconHex)}" x="${(+px + 6).toFixed(1)}" y="${(y + (pillH - iconW) / 2).toFixed(1)}" width="${iconW}" height="${iconW}"/>`
+      ? `<image href="${SI(p.iconSlug, iconHex, iconBase64Map)}" x="${(+px + 6).toFixed(1)}" y="${(y + (pillH - iconW) / 2).toFixed(1)}" width="${iconW}" height="${iconW}"/>`
       : "";
 
   const textX =
@@ -128,7 +135,7 @@ function accentLine(type, x, y, w, color) {
 }
 
 // ── Layout: CLASSIC ────────────────────────────────────────────────────────
-function buildClassic(owner, repo, stack, theme, cfg) {
+function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
   const layout = LAYOUTS.find((l) => l.id === "classic");
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
@@ -159,7 +166,8 @@ function buildClassic(owner, repo, stack, theme, cfg) {
         FS,
         IW,
         cfg.iconStyle,
-        theme.accent
+        theme.accent,
+        iconBase64Map
       );
       x += p.pw + GAP;
     });
@@ -204,7 +212,7 @@ function buildClassic(owner, repo, stack, theme, cfg) {
 }
 
 // ── Layout: COMPACT ────────────────────────────────────────────────────────
-function buildCompact(owner, repo, stack, theme, cfg) {
+function buildCompact(owner, repo, stack, theme, cfg, iconBase64Map) {
   const W = 500,
     H = 110;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
@@ -234,7 +242,8 @@ function buildCompact(owner, repo, stack, theme, cfg) {
         FS,
         IW,
         cfg.iconStyle,
-        theme.accent
+        theme.accent,
+        iconBase64Map
       );
       x += p.pw + GAP;
     });
@@ -273,7 +282,7 @@ function buildCompact(owner, repo, stack, theme, cfg) {
 }
 
 // ── Layout: BANNER ─────────────────────────────────────────────────────────
-function buildBanner(owner, repo, stack, theme, cfg) {
+function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
   const W = 760,
     H = 180;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
@@ -303,7 +312,8 @@ function buildBanner(owner, repo, stack, theme, cfg) {
         FS,
         IW,
         cfg.iconStyle,
-        theme.accent
+        theme.accent,
+        iconBase64Map
       );
       x += p.pw + GAP;
     });
@@ -345,7 +355,7 @@ function buildBanner(owner, repo, stack, theme, cfg) {
 }
 
 // ── Layout: TALL (portrait, grouped) ──────────────────────────────────────
-function buildTall(owner, repo, stack, theme, cfg) {
+function buildTall(owner, repo, stack, theme, cfg, iconBase64Map) {
   const W = 380,
     H = 480;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
@@ -384,14 +394,12 @@ function buildTall(owner, repo, stack, theme, cfg) {
       pillsSVG += `<text x="18" y="${curY}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="2" text-transform="uppercase">${catLabel.toUpperCase()}</text>`;
       curY += 14;
 
-      let x = 18,
-        rowH = curY;
+      let x = 18;
       items.forEach((p, i) => {
         const labelW = p.label.length * FS * 0.63 + IW + 24;
         const pw = Math.max(60, labelW);
         if (x + pw > W - 18 && i > 0) {
           curY += PH + GAP;
-          rowH = curY;
           x = 18;
         }
         pillsSVG += renderPill(
@@ -403,7 +411,8 @@ function buildTall(owner, repo, stack, theme, cfg) {
           FS,
           IW,
           cfg.iconStyle,
-          theme.accent
+          theme.accent,
+          iconBase64Map
         );
         x += pw + GAP;
       });
@@ -514,7 +523,6 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
     repo,
     stack.length,
     `
-    <!-- Terminal window chrome -->
     <rect x="0" y="0" width="${W}" height="30" fill="${theme.accent}" opacity="0.08"/>
     <circle cx="18" cy="15" r="5" fill="#ff5f57" opacity="0.8"/>
     <circle cx="34" cy="15" r="5" fill="#ffbd2e" opacity="0.8"/>
@@ -540,7 +548,6 @@ function buildWrapper(
   signalCount,
   innerSVG
 ) {
-  // Guard against NaN/undefined/0 scale producing invalid SVG dimensions
   const safeScale =
     typeof scale === "number" && isFinite(scale) && scale > 0 ? scale : 1;
   const sW = Math.round(W * safeScale);
@@ -576,15 +583,11 @@ function buildWrapper(
 }
 
 // ── Main export ─────────────────────────────────────────────────────────────
-export function buildSVG(owner, repo, stack, cfg) {
+// iconBase64Map is optional — passed by the API route for CSP-safe server rendering,
+// omitted by the browser preview (falls back to CDN URLs).
+export function buildSVG(owner, repo, stack, cfg, iconBase64Map = null) {
   const theme = THEMES[cfg.theme] ?? THEMES.midnight;
 
-  // remove line for terminal layout since it clashes with the design
-  if (cfg.layout === "terminal") {
-    cfg.accentLine = "none";
-  }
-
-  // Apply category filter
   let filteredStack = stack;
   if (cfg.categoryFilter !== "all") {
     const filter = CATEGORY_FILTERS.find((f) => f.id === cfg.categoryFilter);
@@ -594,14 +597,28 @@ export function buildSVG(owner, repo, stack, cfg) {
 
   switch (cfg.layout) {
     case "compact":
-      return buildCompact(owner, repo, filteredStack, theme, cfg);
+      return buildCompact(
+        owner,
+        repo,
+        filteredStack,
+        theme,
+        cfg,
+        iconBase64Map
+      );
     case "banner":
-      return buildBanner(owner, repo, filteredStack, theme, cfg);
+      return buildBanner(owner, repo, filteredStack, theme, cfg, iconBase64Map);
     case "tall":
-      return buildTall(owner, repo, filteredStack, theme, cfg);
+      return buildTall(owner, repo, filteredStack, theme, cfg, iconBase64Map);
     case "terminal":
       return buildTerminal(owner, repo, filteredStack, theme, cfg);
     default:
-      return buildClassic(owner, repo, filteredStack, theme, cfg);
+      return buildClassic(
+        owner,
+        repo,
+        filteredStack,
+        theme,
+        cfg,
+        iconBase64Map
+      );
   }
 }
