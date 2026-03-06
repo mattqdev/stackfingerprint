@@ -7,7 +7,7 @@ export const metadata = {
   openGraph: {
     title: "Stack Fingerprint",
     description: "Detect any GitHub repo's tech stack instantly.",
-    url: "https://stackfingerprint.dev",
+    url: "https://stackfingerprint.vercel.app",
   },
 };
 

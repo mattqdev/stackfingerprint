@@ -121,10 +121,10 @@ export const DEFAULT_CONFIG = {
   size: "md",
   theme: "midnight",
   iconStyle: "color",
-  pillShape: "pill",
+  pillShape: "round",
   categoryFilter: "all",
   accentLine: "bar",
-  bgDecoration: "none",
+  bgDecoration: "grid",
   dataFields: {
     repoName: true,
     signalCount: true,

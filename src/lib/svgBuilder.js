@@ -13,6 +13,15 @@ const esc = (s) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+// ── Safe scale extractor ───────────────────────────────────────────────────
+function getSafeScale(sizeObj) {
+  if (!sizeObj) return 1;
+  // Support whatever property name the SIZES array uses
+  const raw =
+    sizeObj.scale ?? sizeObj.multiplier ?? sizeObj.value ?? sizeObj.factor ?? 1;
+  return typeof raw === "number" && isFinite(raw) && raw > 0 ? raw : 1;
+}
+
 // ── Pill layout helper ─────────────────────────────────────────────────────
 function layoutPills(pills, maxW, pillH, fontSize, iconW, gap, maxRows) {
   const rows = [];
@@ -96,7 +105,6 @@ function bgDecoration(type, W, H, accentColor) {
     return lines.join("\n");
   }
   if (type === "noise") {
-    // SVG feTurbulence noise overlay
     return `<filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feBlend in="SourceGraphic" mode="overlay" result="blend"/><feComposite in="blend" in2="SourceGraphic" operator="in"/></filter>
     <rect width="${W}" height="${H}" fill="${accentColor}" opacity="0.03" filter="url(#noise)"/>`;
   }
@@ -123,6 +131,7 @@ function accentLine(type, x, y, w, color) {
 function buildClassic(owner, repo, stack, theme, cfg) {
   const layout = LAYOUTS.find((l) => l.id === "classic");
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
+  const scale = getSafeScale(sizeObj);
   const W = layout.dims.w,
     H = layout.dims.h;
   const PH = 28,
@@ -171,7 +180,7 @@ function buildClassic(owner, repo, stack, theme, cfg) {
   return buildWrapper(
     W,
     H,
-    sizeObj.scale,
+    scale,
     theme,
     cfg,
     owner,
@@ -199,6 +208,7 @@ function buildCompact(owner, repo, stack, theme, cfg) {
   const W = 500,
     H = 110;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
+  const scale = getSafeScale(sizeObj);
   const PH = 22,
     PR = cfg.pillShape === "square" ? 3 : cfg.pillShape === "round" ? 6 : 11;
   const FS = 9,
@@ -240,7 +250,7 @@ function buildCompact(owner, repo, stack, theme, cfg) {
   return buildWrapper(
     W,
     H,
-    sizeObj.scale,
+    scale,
     theme,
     cfg,
     owner,
@@ -267,6 +277,7 @@ function buildBanner(owner, repo, stack, theme, cfg) {
   const W = 760,
     H = 180;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
+  const scale = getSafeScale(sizeObj);
   const PH = 26,
     PR = cfg.pillShape === "square" ? 4 : cfg.pillShape === "round" ? 8 : 13;
   const FS = 10,
@@ -310,7 +321,7 @@ function buildBanner(owner, repo, stack, theme, cfg) {
   return buildWrapper(
     W,
     H,
-    sizeObj.scale,
+    scale,
     theme,
     cfg,
     owner,
@@ -338,13 +349,13 @@ function buildTall(owner, repo, stack, theme, cfg) {
   const W = 380,
     H = 480;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
+  const scale = getSafeScale(sizeObj);
   const PH = 24,
     PR = cfg.pillShape === "square" ? 3 : cfg.pillShape === "round" ? 6 : 12;
   const FS = 10,
     IW = 12,
     GAP = 7;
 
-  // Group by category
   const catOrder = {
     lang: 0,
     framework: 1,
@@ -404,7 +415,7 @@ function buildTall(owner, repo, stack, theme, cfg) {
   return buildWrapper(
     W,
     actualH,
-    sizeObj.scale,
+    scale,
     theme,
     cfg,
     owner,
@@ -431,8 +442,8 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
   const W = 600,
     H = 280;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
+  const scale = getSafeScale(sizeObj);
 
-  // Group by category for readout
   const catOrder = {
     lang: 0,
     framework: 1,
@@ -491,13 +502,12 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
     }
   });
 
-  // blinking cursor
   linesVG += `<rect x="22" y="${startY + lines.length * lineH - 14}" width="7" height="12" fill="${theme.accent}" opacity="0.7"/>`;
 
   return buildWrapper(
     W,
     H,
-    sizeObj.scale,
+    scale,
     theme,
     cfg,
     owner,
@@ -530,8 +540,11 @@ function buildWrapper(
   signalCount,
   innerSVG
 ) {
-  const sW = Math.round(W * scale);
-  const sH = Math.round(H * scale);
+  // Guard against NaN/undefined/0 scale producing invalid SVG dimensions
+  const safeScale =
+    typeof scale === "number" && isFinite(scale) && scale > 0 ? scale : 1;
+  const sW = Math.round(W * safeScale);
+  const sH = Math.round(H * safeScale);
   const accentLineW = 52;
   const decSVG = bgDecoration(cfg.bgDecoration, W, H, theme.accent);
   const accSVG =
@@ -566,10 +579,14 @@ function buildWrapper(
 export function buildSVG(owner, repo, stack, cfg) {
   const theme = THEMES[cfg.theme] ?? THEMES.midnight;
 
+  // remove line for terminal layout since it clashes with the design
+  if (cfg.layout === "terminal") {
+    cfg.accentLine = "none";
+  }
+
   // Apply category filter
   let filteredStack = stack;
   if (cfg.categoryFilter !== "all") {
-    const { CATEGORY_FILTERS } = require("../data/cardOptions");
     const filter = CATEGORY_FILTERS.find((f) => f.id === cfg.categoryFilter);
     if (filter?.include)
       filteredStack = stack.filter((t) => filter.include.includes(t.category));

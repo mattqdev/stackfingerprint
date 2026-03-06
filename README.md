@@ -26,7 +26,7 @@ Or connect the repo in the Vercel dashboard — zero config needed.
 ## Embed in a README
 
 ```markdown
-![Stack Fingerprint](https://stackfingerprint.dev/api/card?repo=owner/repo)
+![Stack Fingerprint](https://stackfingerprint.vercel.app/api/card?repo=owner/repo)
 ```
 
 ### API parameters
