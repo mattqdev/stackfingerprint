@@ -29,7 +29,7 @@ async function buildIconMap(stack, iconStyle) {
 
     const hex = resolveIconHex(tech, iconStyle);
     const mapKey = `${tech.iconSlug}/${hex}`;
-    if (iconMap[mapKey] !== undefined) continue; // already processed
+    if (iconMap[mapKey] !== undefined) continue;
 
     // simple-icons exports as si<CapitalisedSlug>, e.g. siNextdotjs
     const exportKey =
@@ -37,11 +37,10 @@ async function buildIconMap(stack, iconStyle) {
     const icon = si[exportKey];
 
     if (!icon?.svg) {
-      iconMap[mapKey] = null; // not found — pill will render text-only
+      iconMap[mapKey] = null;
       continue;
     }
 
-    // Recolour: replace any existing fill on the <svg> tag and inject ours
     const recoloured = icon.svg.replace(
       /(<svg[^>]*?)(\sfill="[^"]*")?(\s*>)/,
       `$1 fill="#${hex}"$3`
@@ -53,6 +52,17 @@ async function buildIconMap(stack, iconStyle) {
 
   return iconMap;
 }
+
+// ── Error message mapping ──────────────────────────────────────────────────
+const ERROR_MESSAGES = {
+  RATE_LIMIT: process.env.GITHUB_TOKEN
+    ? "GitHub rate limit reached — try again shortly"
+    : "GitHub rate limit reached — add GITHUB_TOKEN to env to increase limits",
+  NOT_FOUND: "Repository not found or is private",
+  BAD_TOKEN: "GITHUB_TOKEN is invalid or expired",
+  FORBIDDEN: "Access forbidden — check GITHUB_TOKEN permissions",
+  API_ERROR: "GitHub API error — try again",
+};
 
 // ── Param names match page.js cfgToParams() with legacy alias fallbacks ────
 export async function GET(request) {
@@ -120,12 +130,23 @@ export async function GET(request) {
         "Content-Type": "image/svg+xml",
         "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
         "Access-Control-Allow-Origin": "*",
+        // Expose whether the instance is authenticated — useful for debugging
+        "X-Auth": process.env.GITHUB_TOKEN ? "token" : "none",
       },
     });
   } catch (e) {
     const code =
-      e.message === "NOT_FOUND" ? 404 : e.message === "RATE_LIMIT" ? 429 : 500;
-    return new NextResponse(errorSVG(e.message, code), {
+      e.message === "NOT_FOUND"
+        ? 404
+        : e.message === "RATE_LIMIT"
+          ? 429
+          : e.message === "BAD_TOKEN" || e.message === "FORBIDDEN"
+            ? 403
+            : 500;
+
+    const msg = ERROR_MESSAGES[e.message] ?? "Something went wrong";
+
+    return new NextResponse(errorSVG(msg, code), {
       status: code,
       headers: { "Content-Type": "image/svg+xml" },
     });
@@ -133,14 +154,14 @@ export async function GET(request) {
 }
 
 function errorSVG(msg, code) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80" viewBox="0 0 400 80">
-  <rect width="400" height="80" rx="10" fill="#1a0d0d"/>
-  <rect width="400" height="80" rx="10" fill="none" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="520" height="80" viewBox="0 0 520 80">
+  <rect width="520" height="80" rx="10" fill="#1a0d0d"/>
+  <rect width="520" height="80" rx="10" fill="none" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>
   <text x="20" y="36" font-family="ui-monospace,monospace" font-size="12" fill="#f87171">
     Stack Fingerprint — Error ${code}
   </text>
   <text x="20" y="56" font-family="ui-monospace,monospace" font-size="10" fill="rgba(248,113,113,0.5)">
-    ${msg === "RATE_LIMIT" ? "GitHub rate limit — try again shortly" : msg === "NOT_FOUND" ? "Repository not found or is private" : "Something went wrong"}
+    ${msg}
   </text>
 </svg>`;
 }
