@@ -1,6 +1,7 @@
 // src/data/themes.js
 
 export const THEMES = {
+  // ── Existing themes ────────────────────────────────────────────────────────
   midnight: {
     label: "Midnight",
     emoji: "🌑",
@@ -140,6 +141,168 @@ export const THEMES = {
     muted: "#434c5e",
     accent: "#88c0d0",
     shimmer: "rgba(136,192,208,0.04)",
+  },
+
+  // ── New themes ─────────────────────────────────────────────────────────────
+
+  // Deep space purple — vibrant neon violet on near-black
+  nebula: {
+    label: "Nebula",
+    emoji: "🔭",
+    bg1: "#09060f",
+    bg2: "#100818",
+    border: "rgba(167,139,250,0.1)",
+    title: "#ede9fe",
+    owner: "#a78bfa",
+    slash: "#3b1f6e",
+    sub: "#7c3aed",
+    muted: "#2e1065",
+    accent: "#a78bfa",
+    shimmer: "rgba(167,139,250,0.05)",
+  },
+
+  // Warm cream + brown — parchment / notebook aesthetic
+  parchment: {
+    label: "Parchment",
+    emoji: "📜",
+    bg1: "#fdf6e3",
+    bg2: "#f5ead0",
+    border: "rgba(161,126,73,0.2)",
+    title: "#3b2a14",
+    owner: "#92400e",
+    slash: "#d4a76a",
+    sub: "#b45309",
+    muted: "#e8d5b0",
+    accent: "#92400e",
+    shimmer: "rgba(146,64,14,0.05)",
+  },
+
+  // Neon green on deep black — hacker / matrix terminal
+  matrix: {
+    label: "Matrix",
+    emoji: "👾",
+    bg1: "#000000",
+    bg2: "#020c02",
+    border: "rgba(0,255,65,0.12)",
+    title: "#ccffcc",
+    owner: "#00ff41",
+    slash: "#003b00",
+    sub: "#00a020",
+    muted: "#002200",
+    accent: "#00ff41",
+    shimmer: "rgba(0,255,65,0.04)",
+  },
+
+  // Soft lavender light theme — clean and airy
+  lavender: {
+    label: "Lavender",
+    emoji: "💜",
+    bg1: "#f5f3ff",
+    bg2: "#ede9fe",
+    border: "rgba(139,92,246,0.15)",
+    title: "#2e1065",
+    owner: "#7c3aed",
+    slash: "#c4b5fd",
+    sub: "#6d28d9",
+    muted: "#ddd6fe",
+    accent: "#7c3aed",
+    shimmer: "rgba(124,58,237,0.06)",
+  },
+
+  // Warm sunset — deep coral to magenta gradient
+  sunset: {
+    label: "Sunset",
+    emoji: "🌅",
+    bg1: "#12020a",
+    bg2: "#1a0510",
+    border: "rgba(251,113,133,0.1)",
+    title: "#ffe4e6",
+    owner: "#fb7185",
+    slash: "#881337",
+    sub: "#e11d48",
+    muted: "#4c0519",
+    accent: "#fb7185",
+    shimmer: "rgba(251,113,133,0.04)",
+  },
+
+  // Dracula — the classic dark theme
+  dracula: {
+    label: "Dracula",
+    emoji: "🧛",
+    bg1: "#282a36",
+    bg2: "#1e2029",
+    border: "rgba(189,147,249,0.15)",
+    title: "#f8f8f2",
+    owner: "#bd93f9",
+    slash: "#44475a",
+    sub: "#6272a4",
+    muted: "#44475a",
+    accent: "#bd93f9",
+    shimmer: "rgba(189,147,249,0.04)",
+  },
+
+  // Cyberpunk — electric yellow on dark blue-grey
+  cyber: {
+    label: "Cyber",
+    emoji: "⚡",
+    bg1: "#05050f",
+    bg2: "#080818",
+    border: "rgba(250,204,21,0.12)",
+    title: "#fefce8",
+    owner: "#facc15",
+    slash: "#1a1400",
+    sub: "#ca8a04",
+    muted: "#1c1400",
+    accent: "#facc15",
+    shimmer: "rgba(250,204,21,0.04)",
+  },
+
+  // Monokai — warm dark with green accent
+  monokai: {
+    label: "Monokai",
+    emoji: "🎨",
+    bg1: "#1e1f1c",
+    bg2: "#272822",
+    border: "rgba(166,226,46,0.12)",
+    title: "#f8f8f2",
+    owner: "#a6e22e",
+    slash: "#49483e",
+    sub: "#75715e",
+    muted: "#3e3d32",
+    accent: "#a6e22e",
+    shimmer: "rgba(166,226,46,0.04)",
+  },
+
+  // Slate — cool blue-grey light theme
+  slate: {
+    label: "Slate",
+    emoji: "🩶",
+    bg1: "#f1f5f9",
+    bg2: "#e2e8f0",
+    border: "rgba(71,85,105,0.15)",
+    title: "#0f172a",
+    owner: "#334155",
+    slash: "#94a3b8",
+    sub: "#475569",
+    muted: "#cbd5e1",
+    accent: "#334155",
+    shimmer: "rgba(51,65,85,0.05)",
+  },
+
+  // Deep teal — calm dark aqua tones
+  abyss: {
+    label: "Abyss",
+    emoji: "🌀",
+    bg1: "#020d10",
+    bg2: "#03141a",
+    border: "rgba(20,184,166,0.1)",
+    title: "#ccfbf1",
+    owner: "#2dd4bf",
+    slash: "#0f3d38",
+    sub: "#0d9488",
+    muted: "#042f2e",
+    accent: "#2dd4bf",
+    shimmer: "rgba(45,212,191,0.04)",
   },
 };
 
