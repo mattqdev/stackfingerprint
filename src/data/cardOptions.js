@@ -113,6 +113,7 @@ export const ICON_STYLES = [
   { id: "color", label: "Colored", desc: "Tech brand colors" },
   { id: "mono", label: "Mono", desc: "Single accent color" },
   { id: "none", label: "No icons", desc: "Text labels only" },
+  { id: "icononly", label: "Icons only", desc: "Icon squares, no text" },
 ];
 
 // ── Pill shape ─────────────────────────────────────────────────────────────

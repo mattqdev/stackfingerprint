@@ -40,8 +40,13 @@ function pick(searchParams, keys, validSet, fallback) {
 }
 
 // ── Icon colour resolution (must mirror svgBuilder.js exactly) ────────────
+// "mono"     → always white icon on accent-coloured tile
+// "icononly" → brand text color (same logic as "color")
+// "color"    → brand text color
+// "none"     → no icons fetched at all
 function resolveIconHex(tech, iconStyle) {
   if (iconStyle === "mono") return "ffffff";
+  // color and icononly both use the tech's own textColor
   return (tech.textColor ?? "#ffffff").replace("#", "").toLowerCase();
 }
 
@@ -49,6 +54,7 @@ function resolveIconHex(tech, iconStyle) {
 // Uses the bundled SVG strings — zero network calls, works in any environment.
 // The CDN (cdn.simpleicons.org) blocks server-side fetches with 403.
 async function buildIconMap(stack, iconStyle) {
+  // "none" renders no icons at all — skip the whole bundle import
   if (iconStyle === "none") return {};
 
   // Dynamic import so the large icons bundle is only loaded when needed

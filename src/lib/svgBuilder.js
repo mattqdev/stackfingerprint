@@ -30,14 +30,27 @@ function getSafeScale(sizeObj) {
 }
 
 // ── Pill layout helper ─────────────────────────────────────────────────────
-function layoutPills(pills, maxW, pillH, fontSize, iconW, gap, maxRows) {
+// When iconStyle is "icononly" every pill is a square of size pillH,
+// so pw is always pillH regardless of label length.
+function layoutPills(
+  pills,
+  maxW,
+  pillH,
+  fontSize,
+  iconW,
+  gap,
+  maxRows,
+  iconStyle
+) {
+  const isIconOnly = iconStyle === "icononly";
   const rows = [];
   let row = [],
     rowW = 0;
 
   for (const p of pills) {
-    const labelW = p.label.length * fontSize * 0.63 + iconW + 24;
-    const pw = Math.max(58, labelW);
+    const pw = isIconOnly
+      ? pillH
+      : Math.max(58, p.label.length * fontSize * 0.63 + iconW + 24);
     if (rowW + pw + gap > maxW - 44 && row.length > 0) {
       rows.push(row);
       if (rows.length >= maxRows) break;
@@ -53,6 +66,8 @@ function layoutPills(pills, maxW, pillH, fontSize, iconW, gap, maxRows) {
 }
 
 // ── Shared pill SVG ────────────────────────────────────────────────────────
+// iconStyle "icononly": square tile = pillH × pillH, centred icon, no text.
+// Falls back to 2-char initials when no icon is available.
 function renderPill(
   p,
   x,
@@ -65,6 +80,34 @@ function renderPill(
   accentColor,
   iconBase64Map
 ) {
+  // ── icononly: square tile, no label ───────────────────────────────────
+  if (iconStyle === "icononly") {
+    const size = pillH; // square
+    const px = x.toFixed(1);
+    const rad = pillR.toFixed(1);
+    const fillColor = p.color;
+    const textC = p.textColor ?? "#ffffff";
+    const iconHex = textC.replace("#", "").toLowerCase();
+    const icSize = Math.round(size * 0.55);
+    const icOff = (size - icSize) / 2;
+
+    let inner = "";
+    if (p.iconSlug) {
+      const href = resolveIcon(p.iconSlug, iconHex, iconBase64Map);
+      if (href) {
+        inner = `<image href="${href}" x="${(+px + icOff).toFixed(1)}" y="${(y + icOff).toFixed(1)}" width="${icSize}" height="${icSize}"/>`;
+      }
+    }
+    if (!inner) {
+      // Fallback: 2-char initials centred in the square
+      inner = `<text x="${(+px + size / 2).toFixed(1)}" y="${(y + size / 2 + fontSize * 0.38).toFixed(1)}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="${Math.round(fontSize * 0.9)}" font-weight="700" fill="${textC}">${esc(p.label.slice(0, 2))}</text>`;
+    }
+
+    return `<rect x="${px}" y="${y}" width="${size}" height="${size}" rx="${rad}" fill="${fillColor}" opacity="0.92"/>
+      ${inner}`;
+  }
+
+  // ── Standard pill (color / mono / none) ───────────────────────────────
   const px = x.toFixed(1);
   const rad = pillR.toFixed(1);
   const fillColor = iconStyle === "mono" ? accentColor : p.color;
@@ -201,7 +244,7 @@ function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
 
   const visible = stack.slice(0, layout.maxPills);
   const overflow = stack.length - visible.length;
-  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 3);
+  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 3, cfg.iconStyle);
 
   let pillsSVG = "";
   rows.forEach((row, ri) => {
@@ -278,7 +321,7 @@ function buildCompact(owner, repo, stack, theme, cfg, iconBase64Map) {
 
   const visible = stack.slice(0, 7);
   const overflow = stack.length - visible.length;
-  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 1);
+  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 1, cfg.iconStyle);
 
   let pillsSVG = "";
   if (rows[0]) {
@@ -353,7 +396,7 @@ function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
 
   const visible = stack.slice(0, 24);
   const overflow = stack.length - visible.length;
-  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 2);
+  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 2, cfg.iconStyle);
 
   let pillsSVG = "";
   rows.forEach((row, ri) => {
@@ -435,8 +478,10 @@ function buildTall(owner, repo, stack, theme, cfg, iconBase64Map) {
     curY += 14;
     let x = 18;
     items.forEach((p, i) => {
-      const labelW = p.label.length * FS * 0.63 + IW + 24;
-      const pw = Math.max(60, labelW);
+      const pw =
+        cfg.iconStyle === "icononly"
+          ? PH
+          : Math.max(60, p.label.length * FS * 0.63 + IW + 24);
       if (x + pw > W - 18 && i > 0) {
         curY += PH + GAP;
         x = 18;
@@ -573,7 +618,7 @@ function buildMinimal(owner, repo, stack, theme, cfg, iconBase64Map) {
 
   const visible = stack.slice(0, 10);
   const overflow = stack.length - visible.length;
-  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 1);
+  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 1, cfg.iconStyle);
 
   let pillsSVG = "";
   if (rows[0]) {
@@ -716,6 +761,7 @@ function buildIcons(owner, repo, stack, theme, cfg, iconBase64Map) {
 // wiki panel, or documentation page margin. One pill per row, full width.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
+  const isIconOnly = cfg.iconStyle === "icononly";
   const W = 160;
   const PH = 26,
     PR = cfg.pillShape === "square" ? 3 : cfg.pillShape === "round" ? 6 : 13;
@@ -726,41 +772,84 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
 
   const visible = stack.slice(0, 30);
   const overflow = stack.length - visible.length;
-
   const headerH = cfg.dataFields.repoName ? 52 : PAD;
-  const itemsH = visible.length * (PH + GAP) - GAP;
-  const overflowH = overflow > 0 && cfg.dataFields.overflowBadge ? PH + GAP : 0;
-  const footerH = cfg.dataFields.footerUrl ? 18 : 0;
-  const H = headerH + itemsH + overflowH + PAD + footerH;
-
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
 
   let pillsSVG = "";
-  visible.forEach((p, i) => {
-    const labelW = p.label.length * FS * 0.63 + IW + 16;
-    const pw = W - PAD * 2;
-    const x = PAD;
-    const y = headerH + i * (PH + GAP);
-    pillsSVG += renderPill(
-      { ...p, pw },
-      x,
-      y,
-      PH,
-      PR,
-      FS,
-      IW,
-      cfg.iconStyle,
-      theme.accent,
-      iconBase64Map
-    );
-  });
+  let H;
 
-  if (overflow > 0 && cfg.dataFields.overflowBadge) {
-    const y = headerH + visible.length * (PH + GAP);
-    const pw = W - PAD * 2;
-    pillsSVG += `<rect x="${PAD}" y="${y}" width="${pw}" height="${PH}" rx="${PR}" fill="rgba(255,255,255,0.06)" stroke="${theme.border}" stroke-width="1"/>`;
-    pillsSVG += `<text x="${W / 2}" y="${y + PH / 2 + 3.5}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8" fill="rgba(255,255,255,0.35)">+${overflow} more</text>`;
+  if (isIconOnly) {
+    // Grid of squares: 3 columns inside 160px sidebar
+    const COLS = 3;
+    const CELL = PH,
+      HGAP = GAP,
+      VGAP = GAP;
+    const rowCount = Math.ceil(visible.length / COLS);
+    const gridH = rowCount * (CELL + VGAP) - VGAP;
+    const overflowH =
+      overflow > 0 && cfg.dataFields.overflowBadge ? CELL + VGAP : 0;
+    const footerH = cfg.dataFields.footerUrl ? 18 : 0;
+    H = headerH + PAD + gridH + overflowH + PAD + footerH;
+
+    visible.forEach((p, i) => {
+      const col = i % COLS;
+      const row = Math.floor(i / COLS);
+      const x = PAD + col * (CELL + HGAP);
+      const y = headerH + PAD + row * (CELL + VGAP);
+      pillsSVG += renderPill(
+        { ...p, pw: CELL },
+        x,
+        y,
+        CELL,
+        PR,
+        FS,
+        IW,
+        cfg.iconStyle,
+        theme.accent,
+        iconBase64Map
+      );
+    });
+
+    if (overflow > 0 && cfg.dataFields.overflowBadge) {
+      const col = visible.length % COLS;
+      const row = Math.floor(visible.length / COLS);
+      const x = PAD + col * (CELL + HGAP);
+      const y = headerH + PAD + row * (CELL + VGAP);
+      pillsSVG += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="${PR}" fill="rgba(255,255,255,0.06)" stroke="${theme.border}" stroke-width="1"/>`;
+      pillsSVG += `<text x="${x + CELL / 2}" y="${y + CELL / 2 + 3.5}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7" fill="rgba(255,255,255,0.35)">+${overflow}</text>`;
+    }
+  } else {
+    // Original: one full-width pill per row
+    const itemsH = visible.length * (PH + GAP) - GAP;
+    const overflowH =
+      overflow > 0 && cfg.dataFields.overflowBadge ? PH + GAP : 0;
+    const footerH = cfg.dataFields.footerUrl ? 18 : 0;
+    H = headerH + itemsH + overflowH + PAD + footerH;
+
+    visible.forEach((p, i) => {
+      const pw = W - PAD * 2;
+      const y = headerH + i * (PH + GAP);
+      pillsSVG += renderPill(
+        { ...p, pw },
+        PAD,
+        y,
+        PH,
+        PR,
+        FS,
+        IW,
+        cfg.iconStyle,
+        theme.accent,
+        iconBase64Map
+      );
+    });
+
+    if (overflow > 0 && cfg.dataFields.overflowBadge) {
+      const y = headerH + visible.length * (PH + GAP);
+      const pw = W - PAD * 2;
+      pillsSVG += `<rect x="${PAD}" y="${y}" width="${pw}" height="${PH}" rx="${PR}" fill="rgba(255,255,255,0.06)" stroke="${theme.border}" stroke-width="1"/>`;
+      pillsSVG += `<text x="${W / 2}" y="${y + PH / 2 + 3.5}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8" fill="rgba(255,255,255,0.35)">+${overflow} more</text>`;
+    }
   }
 
   return buildWrapper(
@@ -843,7 +932,7 @@ function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
   const rightW = W - DIVX;
   const visible = stack.slice(0, 20);
   const overflow = stack.length - visible.length;
-  const rows = layoutPills(visible, rightW, PH, FS, IW, GAP, 4);
+  const rows = layoutPills(visible, rightW, PH, FS, IW, GAP, 4, cfg.iconStyle);
 
   let rightSVG = "";
   rows.forEach((row, ri) => {
