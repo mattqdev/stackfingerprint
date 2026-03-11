@@ -10,6 +10,7 @@ Zero auth. Zero config. Paste a repo, get a badge.
 [![Stars](https://img.shields.io/github/stars/mattqdev/stackfingerprint?style=social)](https://github.com/mattqdev/stackfingerprint)
 [![Deploy with Vercel](https://img.shields.io/badge/deploy-vercel-000?logo=vercel)](https://vercel.com/new/clone?repository-url=https://github.com/mattqdev/stackfingerprint)
 [![License: MIT](https://img.shields.io/badge/license-MIT-33ff33)](LICENSE)
+<a href="https://www.producthunt.com/products/stack-fingerprint?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-stack-fingerprint" target="_blank" rel="noopener noreferrer"><img alt="Stack Fingerprint - Visualize your tech stack instantly with GitHub README card. | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1095648&amp;theme=dark&amp;t=1773261979999"></a>
 
 ---
 
