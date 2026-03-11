@@ -30,6 +30,7 @@ const esc = (s) =>
 // ── Safe scale extractor ───────────────────────────────────────────────────
 function getSafeScale(sizeObj) {
   if (!sizeObj) return 1;
+  // FIX: SIZES uses "scale" — primary lookup, with fallbacks for safety
   const raw =
     sizeObj.scale ?? sizeObj.multiplier ?? sizeObj.value ?? sizeObj.factor ?? 1;
   return typeof raw === "number" && isFinite(raw) && raw > 0 ? raw : 1;
@@ -98,14 +99,19 @@ function renderPill(
 }
 
 // ── Background decorations ─────────────────────────────────────────────────
-function bgDecoration(type, W, H, accentColor) {
+// FIX: Returns { defs, body } so defs can be merged into a single <defs> block
+function bgDecorationParts(type, W, H, accentColor) {
   if (type === "grid") {
-    return `<defs><pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M 24 0 L 0 0 0 24" fill="none" stroke="${accentColor}" stroke-opacity="0.06" stroke-width="0.5"/></pattern></defs>
-    <rect width="${W}" height="${H}" fill="url(#grid)"/>`;
+    return {
+      defs: `<pattern id="bgPattern" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M 24 0 L 0 0 0 24" fill="none" stroke="${accentColor}" stroke-opacity="0.06" stroke-width="0.5"/></pattern>`,
+      body: `<rect width="${W}" height="${H}" fill="url(#bgPattern)"/>`,
+    };
   }
   if (type === "dots") {
-    return `<defs><pattern id="dots" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="${accentColor}" fill-opacity="0.12"/></pattern></defs>
-    <rect width="${W}" height="${H}" fill="url(#dots)"/>`;
+    return {
+      defs: `<pattern id="bgPattern" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1" fill="${accentColor}" fill-opacity="0.12"/></pattern>`,
+      body: `<rect width="${W}" height="${H}" fill="url(#bgPattern)"/>`,
+    };
   }
   if (type === "circuit") {
     const lines = [];
@@ -120,29 +126,39 @@ function bgDecoration(type, W, H, accentColor) {
         `<circle cx="${x1}" cy="${y1 + 10 + i * 15}" r="2" fill="${accentColor}" fill-opacity="0.08"/>`
       );
     }
-    return lines.join("\n");
+    return { defs: "", body: lines.join("\n") };
   }
   if (type === "noise") {
-    return `<filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feBlend in="SourceGraphic" mode="overlay" result="blend"/><feComposite in="blend" in2="SourceGraphic" operator="in"/></filter>
-    <rect width="${W}" height="${H}" fill="${accentColor}" opacity="0.03" filter="url(#noise)"/>`;
+    return {
+      defs: `<filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feBlend in="SourceGraphic" mode="overlay" result="blend"/><feComposite in="blend" in2="SourceGraphic" operator="in"/></filter>`,
+      body: `<rect width="${W}" height="${H}" fill="${accentColor}" opacity="0.03" filter="url(#noiseFilter)"/>`,
+    };
   }
-  return "";
+  return { defs: "", body: "" };
 }
 
 // ── Accent line ────────────────────────────────────────────────────────────
-function accentLine(type, x, y, w, color) {
-  if (type === "bar")
-    return `<rect x="${x}" y="${y}" width="${w}" height="2" rx="1" fill="${color}" opacity="0.7"/>`;
-  if (type === "gradient")
-    return `<defs><linearGradient id="acc" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${color}" stop-opacity="0.8"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
-    <rect x="${x}" y="${y}" width="${w * 2}" height="2" rx="1" fill="url(#acc)"/>`;
+// FIX: Returns { defs, body } to avoid duplicate <defs> blocks in the SVG
+function accentLineParts(type, x, y, w, color) {
+  if (type === "bar") {
+    return {
+      defs: "",
+      body: `<rect x="${x}" y="${y}" width="${w}" height="2" rx="1" fill="${color}" opacity="0.7"/>`,
+    };
+  }
+  if (type === "gradient") {
+    return {
+      defs: `<linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="${color}" stop-opacity="0.8"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient>`,
+      body: `<rect x="${x}" y="${y}" width="${w * 2}" height="2" rx="1" fill="url(#accentGrad)"/>`,
+    };
+  }
   if (type === "dots") {
     let d = "";
     for (let i = 0; i < 6; i++)
-      d += `<circle cx="${x + i * 8}" cy="${y + 1}" r="1.5" fill="${color}" opacity="${0.8 - i * 0.12}"/>`;
-    return d;
+      d += `<circle cx="${x + i * 8}" cy="${y + 1}" r="1.5" fill="${color}" opacity="${(0.8 - i * 0.12).toFixed(2)}"/>`;
+    return { defs: "", body: d };
   }
-  return "";
+  return { defs: "", body: "" };
 }
 
 // ── Layout: CLASSIC ────────────────────────────────────────────────────────
@@ -184,7 +200,7 @@ function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
     });
   });
 
-  if (overflow > 0 && rows.length > 0) {
+  if (overflow > 0 && cfg.dataFields.overflowBadge && rows.length > 0) {
     const lr = rows[rows.length - 1];
     const totalW = lr.reduce((a, p) => a + p.pw + GAP, -GAP);
     const bx = (W + totalW) / 2 + GAP + 4;
@@ -260,7 +276,7 @@ function buildCompact(owner, repo, stack, theme, cfg, iconBase64Map) {
     });
   }
 
-  if (overflow > 0 && rows[0]) {
+  if (overflow > 0 && cfg.dataFields.overflowBadge && rows[0]) {
     const totalW = rows[0].reduce((a, p) => a + p.pw + GAP, -GAP);
     const bx = (W + totalW) / 2 + 10;
     pillsSVG += `<rect x="${bx}" y="58" width="26" height="${PH}" rx="${PR}" fill="rgba(255,255,255,0.06)" stroke="${theme.border}" stroke-width="1"/>
@@ -330,7 +346,7 @@ function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
     });
   });
 
-  if (overflow > 0 && rows.length > 0) {
+  if (overflow > 0 && cfg.dataFields.overflowBadge && rows.length > 0) {
     const lr = rows[rows.length - 1];
     const totalW = lr.reduce((a, p) => a + p.pw + GAP, -GAP);
     const bx = (W + totalW) / 2 + GAP + 4;
@@ -512,7 +528,7 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
     const y = startY + i * lineH;
     if (ln.prompt !== undefined) {
       linesVG += `<text x="22" y="${y}" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="11" fill="${ln.color}">
-        <tspan fill="${theme.accent}">${ln.prompt} </tspan><tspan>${esc(ln.cmd)}</tspan>
+        <tspan fill="${theme.accent}">${esc(ln.prompt)} </tspan><tspan fill="${theme.title}">${esc(ln.cmd)}</tspan>
       </text>`;
     } else if (ln.label) {
       linesVG += `<text x="22" y="${y}" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="11">
@@ -547,6 +563,7 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
 }
 
 // ── Shared wrapper ─────────────────────────────────────────────────────────
+// FIX: All <defs> are now merged into a single block to produce valid SVG.
 function buildWrapper(
   W,
   H,
@@ -562,30 +579,44 @@ function buildWrapper(
     typeof scale === "number" && isFinite(scale) && scale > 0 ? scale : 1;
   const sW = Math.round(W * safeScale);
   const sH = Math.round(H * safeScale);
-  const decSVG = bgDecoration(cfg.bgDecoration, W, H, theme.accent);
-  const accSVG =
+
+  // Collect all defs from decorations and accent line
+  const bgParts = bgDecorationParts(cfg.bgDecoration, W, H, theme.accent);
+  const accParts =
     cfg.accentLine !== "none"
-      ? accentLine(cfg.accentLine, 22, 16, 52, theme.accent)
-      : "";
+      ? accentLineParts(cfg.accentLine, 22, 16, 52, theme.accent)
+      : { defs: "", body: "" };
+
+  // Merge all defs into one block
+  const allDefs = [
+    // Core gradients
+    `<linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${theme.bg1}"/>
+      <stop offset="100%" stop-color="${theme.bg2}"/>
+    </linearGradient>`,
+    `<linearGradient id="shimmer" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="${theme.shimmer}"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </linearGradient>`,
+    `<clipPath id="card"><rect width="${W}" height="${H}" rx="14"/></clipPath>`,
+    // Background decoration defs
+    bgParts.defs,
+    // Accent line defs
+    accParts.defs,
+  ]
+    .filter(Boolean)
+    .join("\n    ");
 
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${sW}" height="${sH}" viewBox="0 0 ${W} ${H}">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="${theme.bg1}"/>
-      <stop offset="100%" stop-color="${theme.bg2}"/>
-    </linearGradient>
-    <linearGradient id="shimmer" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="${theme.shimmer}"/>
-      <stop offset="100%" stop-color="transparent"/>
-    </linearGradient>
-    <clipPath id="card"><rect width="${W}" height="${H}" rx="14"/></clipPath>
+    ${allDefs}
   </defs>
   <g clip-path="url(#card)">
     <rect width="${W}" height="${H}" fill="url(#bg)"/>
     <rect width="${W}" height="${H}" fill="url(#shimmer)"/>
-    ${decSVG}
+    ${bgParts.body}
     <rect width="${W}" height="${H}" fill="none" stroke="${theme.border}" stroke-width="1"/>
-    ${accSVG}
+    ${accParts.body}
     ${innerSVG}
   </g>
 </svg>`;

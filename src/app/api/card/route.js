@@ -3,9 +3,41 @@ import { NextResponse } from "next/server";
 import { fetchContents } from "../../../lib/github";
 import { detectStack } from "../../../lib/detect";
 import { buildSVG } from "../../../lib/svgBuilder";
-import { DEFAULT_CONFIG } from "../../../data/cardOptions";
+import {
+  DEFAULT_CONFIG,
+  LAYOUTS,
+  SIZES,
+  ICON_STYLES,
+  PILL_SHAPES,
+  CATEGORY_FILTERS,
+  ACCENT_LINES,
+  BG_DECORATIONS,
+} from "../../../data/cardOptions";
+import { THEMES } from "../../../data/themes";
 
 export const revalidate = 0; // disable ISR — cache via headers only
+
+// ── Valid value sets (derived from cardOptions & themes) ────────────────────
+const VALID_LAYOUTS = new Set(LAYOUTS.map((l) => l.id));
+const VALID_SIZES = new Set(SIZES.map((s) => s.id));
+const VALID_THEMES = new Set(Object.keys(THEMES));
+const VALID_ICON_STYLES = new Set(ICON_STYLES.map((i) => i.id));
+const VALID_PILL_SHAPES = new Set(PILL_SHAPES.map((p) => p.id));
+const VALID_CATEGORY_FILTERS = new Set(CATEGORY_FILTERS.map((f) => f.id));
+const VALID_ACCENT_LINES = new Set(ACCENT_LINES.map((a) => a.id));
+const VALID_BG_DECORATIONS = new Set(BG_DECORATIONS.map((b) => b.id));
+
+// ── Helper: pick a value from params with validation ──────────────────────
+function pick(searchParams, keys, validSet, fallback) {
+  for (const key of keys) {
+    const val = searchParams.get(key);
+    if (val !== null) {
+      // If no validation set provided, accept any non-empty value
+      if (!validSet || validSet.has(val)) return val;
+    }
+  }
+  return fallback;
+}
 
 // ── Icon colour resolution (must mirror svgBuilder.js exactly) ────────────
 function resolveIconHex(tech, iconStyle) {
@@ -31,9 +63,12 @@ async function buildIconMap(stack, iconStyle) {
     const mapKey = `${tech.iconSlug}/${hex}`;
     if (iconMap[mapKey] !== undefined) continue;
 
-    // simple-icons exports as si<CapitalisedSlug>, e.g. siNextdotjs
+    // simple-icons exports as si<CapitalisedSlug>
+    // FIX: Handle slugs with dots/dashes by stripping them before capitalising
+    // e.g. "nextdotjs" → "siNextdotjs", "dotnet" → "siDotnet"
+    const normalised = tech.iconSlug.replace(/[^a-zA-Z0-9]/g, "");
     const exportKey =
-      "si" + tech.iconSlug.charAt(0).toUpperCase() + tech.iconSlug.slice(1);
+      "si" + normalised.charAt(0).toUpperCase() + normalised.slice(1);
     const icon = si[exportKey];
 
     if (!icon?.svg) {
@@ -64,7 +99,9 @@ const ERROR_MESSAGES = {
   API_ERROR: "GitHub API error — try again",
 };
 
-// ── Param names match page.js cfgToParams() with legacy alias fallbacks ────
+// ── GET handler ────────────────────────────────────────────────────────────
+// Param names match page.js cfgToParams() with legacy alias fallbacks.
+// All parameters are validated against their allowed value sets.
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
 
@@ -77,6 +114,8 @@ export async function GET(request) {
   const [owner, repo] = parts;
 
   // ── dataFields ─────────────────────────────────────────────────────────
+  // FIX: All DATA_FIELDS toggle parameters are now parsed and validated.
+  // Supports both df_<fieldId>=1/0 and standalone shorthand.
   const dataFields = { ...DEFAULT_CONFIG.dataFields };
   [
     "repoName",
@@ -87,35 +126,63 @@ export async function GET(request) {
     "overflowBadge",
   ].forEach((k) => {
     const raw = searchParams.get(`df_${k}`);
-    if (raw !== null) dataFields[k] = raw === "1";
+    if (raw !== null) {
+      // Accept "1"/"true"/"yes" as truthy, "0"/"false"/"no" as falsy
+      dataFields[k] = raw === "1" || raw === "true" || raw === "yes";
+    }
   });
 
   // ── cfg ────────────────────────────────────────────────────────────────
+  // FIX: All parameters are now validated against their valid value sets,
+  // preventing invalid values from reaching the SVG builder.
   const cfg = {
     ...DEFAULT_CONFIG,
-    layout: searchParams.get("layout") ?? DEFAULT_CONFIG.layout,
-    size: searchParams.get("size") ?? DEFAULT_CONFIG.size,
-    theme: searchParams.get("theme") ?? DEFAULT_CONFIG.theme,
-    iconStyle:
-      searchParams.get("iconStyle") ??
-      searchParams.get("icons") ??
-      DEFAULT_CONFIG.iconStyle,
-    pillShape:
-      searchParams.get("pillShape") ??
-      searchParams.get("pills") ??
-      DEFAULT_CONFIG.pillShape,
-    categoryFilter:
-      searchParams.get("categoryFilter") ??
-      searchParams.get("cats") ??
-      DEFAULT_CONFIG.categoryFilter,
-    accentLine:
-      searchParams.get("accentLine") ??
-      searchParams.get("accent") ??
-      DEFAULT_CONFIG.accentLine,
-    bgDecoration:
-      searchParams.get("bgDecoration") ??
-      searchParams.get("bg") ??
-      DEFAULT_CONFIG.bgDecoration,
+    // layout: validated against LAYOUTS
+    layout: pick(
+      searchParams,
+      ["layout"],
+      VALID_LAYOUTS,
+      DEFAULT_CONFIG.layout
+    ),
+    // size: validated against SIZES
+    size: pick(searchParams, ["size"], VALID_SIZES, DEFAULT_CONFIG.size),
+    // theme: validated against THEMES
+    theme: pick(searchParams, ["theme"], VALID_THEMES, DEFAULT_CONFIG.theme),
+    // iconStyle: validated against ICON_STYLES, with legacy alias "icons"
+    iconStyle: pick(
+      searchParams,
+      ["iconStyle", "icons"],
+      VALID_ICON_STYLES,
+      DEFAULT_CONFIG.iconStyle
+    ),
+    // pillShape: validated against PILL_SHAPES, with legacy alias "pills"
+    pillShape: pick(
+      searchParams,
+      ["pillShape", "pills"],
+      VALID_PILL_SHAPES,
+      DEFAULT_CONFIG.pillShape
+    ),
+    // categoryFilter: validated against CATEGORY_FILTERS, with legacy alias "cats"
+    categoryFilter: pick(
+      searchParams,
+      ["categoryFilter", "cats"],
+      VALID_CATEGORY_FILTERS,
+      DEFAULT_CONFIG.categoryFilter
+    ),
+    // accentLine: validated against ACCENT_LINES, with legacy alias "accent"
+    accentLine: pick(
+      searchParams,
+      ["accentLine", "accent"],
+      VALID_ACCENT_LINES,
+      DEFAULT_CONFIG.accentLine
+    ),
+    // bgDecoration: validated against BG_DECORATIONS, with legacy alias "bg"
+    bgDecoration: pick(
+      searchParams,
+      ["bgDecoration", "bg"],
+      VALID_BG_DECORATIONS,
+      DEFAULT_CONFIG.bgDecoration
+    ),
     dataFields,
   };
 

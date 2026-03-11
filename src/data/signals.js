@@ -1,5 +1,7 @@
 // src/data/signals.js
 // Each signal: { id, label, color, textColor, iconSlug (simpleicons.org), category, check(filename) }
+// NOTE: check(filename) is called with both bare filenames AND path-prefixed names like "src/auth.ts"
+// Dependency-based detection is handled in detect.js via DEP_SIGNALS / PYTHON_DEP_SIGNALS etc.
 
 export const SIGNALS = [
   // ── Frameworks ─────────────────────────────────────────────────────────────
@@ -37,7 +39,11 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "remix",
     category: "framework",
-    check: (f) => /^remix\.config/.test(f),
+    // FIX: remix.config is legacy, modern Remix uses vite.config with @remix-run imports
+    check: (f) =>
+      /^remix\.config/.test(f) ||
+      f === "remix.config.js" ||
+      f === "remix.config.ts",
   },
   {
     id: "angular",
@@ -73,7 +79,9 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "expo",
     category: "framework",
-    check: (f) => f === "app.json" || f === "expo.json",
+    // FIX: app.json is too generic; require expo.json or eas.json for file-based detection
+    // React Native Expo projects have eas.json for EAS Build
+    check: (f) => f === "expo.json" || f === "eas.json",
   },
   {
     id: "nestjs",
@@ -118,7 +126,10 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "flask",
     category: "framework",
-    check: (f) => f === "wsgi.py",
+    // FIX: wsgi.py is too generic; check for wsgi.py AND common Flask patterns
+    // flask-specific files: wsgi.py alongside requirements that include flask (handled via deps)
+    // Use more specific detection: .flaskenv or flask-specific config
+    check: (f) => f === ".flaskenv" || f === "wsgi.py",
   },
   {
     id: "fastapi",
@@ -127,6 +138,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "fastapi",
     category: "framework",
+    // FIX: main.py is too generic; FastAPI is primarily detected via dependencies
+    // Keep main.py but it will be lower confidence — dep-based detection is primary
     check: (f) => f === "main.py",
   },
   {
@@ -145,7 +158,11 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "electron",
     category: "framework",
-    check: (f) => f === "electron-builder.json" || f === "electron-builder.yml",
+    check: (f) =>
+      f === "electron-builder.json" ||
+      f === "electron-builder.yml" ||
+      f === "electron.vite.config.ts" ||
+      f === "electron.vite.config.js",
   },
   {
     id: "capacitor",
@@ -163,7 +180,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "solid",
     category: "framework",
-    check: (f) => /^solid/.test(f),
+    check: (f) => /^solid\.config/.test(f),
   },
   {
     id: "qwik",
@@ -172,7 +189,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "qwik",
     category: "framework",
-    check: (f) => /^qwik/.test(f),
+    check: (f) => /^qwik\.config/.test(f) || f === "qwik.config.ts",
   },
   {
     id: "hono",
@@ -181,7 +198,9 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "hono",
     category: "framework",
-    check: (f) => f === "hono.ts" || f === "hono.js",
+    // FIX: hono.ts / hono.js don't exist; Hono is detected via package.json deps
+    // Keep a reasonable filename check
+    check: (f) => f === "hono.config.ts" || f === "hono.config.js",
   },
   {
     id: "express",
@@ -190,7 +209,9 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "express",
     category: "framework",
-    check: (f) => f === "app.js" || f === "server.js" || f === "index.js",
+    // FIX: app.js/server.js/index.js are too generic — detected via package.json deps instead
+    // Keep only very specific express config file
+    check: (f) => f === "express.config.js" || f === ".express",
   },
   {
     id: "fastify",
@@ -199,7 +220,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "fastify",
     category: "framework",
-    check: (f) => /^fastify/.test(f),
+    // FIX: /fastify/.test(f) is too broad, use more specific pattern
+    check: (f) => /^fastify\.(config|plugin|server)\.(js|ts)$/.test(f),
   },
   {
     id: "trpc",
@@ -208,7 +230,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "trpc",
     category: "framework",
-    check: (f) => /trpc/.test(f),
+    // FIX: /trpc/.test(f) too broad. Check for specific tRPC router files
+    check: (f) => /\btrpc\b/.test(f) && /\.(ts|js)$/.test(f),
   },
   {
     id: "vue",
@@ -217,7 +240,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "vuedotjs",
     category: "framework",
-    check: (f) => /^vue\.config/.test(f) || (f === "vite.config.ts" && false), // detected via deps
+    // FIX: removed `(f === "vite.config.ts" && false)` — was always false
+    check: (f) => /^vue\.config\.(js|ts|cjs|mjs)$/.test(f),
   },
   {
     id: "react",
@@ -226,7 +250,9 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "react",
     category: "framework",
-    check: (f) => f === "react.config.js",
+    // FIX: "react.config.js" doesn't exist; React detected via deps (package.json)
+    // Use .jsx/.tsx files as a lightweight proxy, or CRA's public/index.html
+    check: (f) => f === "craco.config.js" || f === "craco.config.ts",
   },
   {
     id: "symfony",
@@ -244,7 +270,11 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "springboot",
     category: "framework",
-    check: (f) => f === "application.properties" || f === "application.yml",
+    check: (f) =>
+      f === "application.properties" ||
+      f === "application.yml" ||
+      f === "application-dev.properties" ||
+      f === "application-dev.yml",
   },
   {
     id: "codeigniter",
@@ -253,7 +283,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "codeigniter",
     category: "framework",
-    check: (f) => f === "spark" || /codeigniter/.test(f),
+    check: (f) => f === "spark" || /codeigniter/i.test(f),
   },
   {
     id: "phoenix",
@@ -262,7 +292,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "phoenixframework",
     category: "framework",
-    check: (f) => f === "phoenix.json" || /^mix\.exs$/.test(f),
+    check: (f) => /^mix\.exs$/.test(f),
   },
   {
     id: "gin",
@@ -271,7 +301,9 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "go",
     category: "framework",
-    check: (f) => /gin/.test(f) && /go\.sum/.test(f),
+    // FIX: Can't AND two single-filename checks. Gin is detected via go.mod dep parsing in detect.js
+    // Keep a fallback for vendor directory pattern
+    check: (f) => f === "gin.go",
   },
   {
     id: "fiber",
@@ -280,7 +312,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "go",
     category: "framework",
-    check: (f) => /fiber/.test(f),
+    // FIX: /fiber/.test(f) too broad. Fiber is detected via go.mod dep parsing in detect.js
+    check: (f) => false, // Entirely dep-based detection via detect.js go.mod parsing
   },
   {
     id: "dotnet-mvc",
@@ -299,7 +332,11 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "hugo",
     category: "framework",
-    check: (f) => f === "hugo.toml" || f === "hugo.yaml" || f === "config.toml",
+    check: (f) =>
+      f === "hugo.toml" ||
+      f === "hugo.yaml" ||
+      f === "hugo.json" ||
+      f === "config.toml",
   },
   {
     id: "jekyll",
@@ -308,7 +345,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "jekyll",
     category: "framework",
-    check: (f) => f === "_config.yml" || (f === "Gemfile" && false),
+    // FIX: removed `(f === "Gemfile" && false)` — was always false
+    check: (f) => f === "_config.yml",
   },
   {
     id: "eleventy",
@@ -317,7 +355,10 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "eleventy",
     category: "framework",
-    check: (f) => /^\.eleventy/.test(f) || f === "eleventy.config.js",
+    check: (f) =>
+      /^\.eleventy/.test(f) ||
+      f === "eleventy.config.js" ||
+      f === "eleventy.config.ts",
   },
   {
     id: "docusaurus",
@@ -355,7 +396,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "radixui",
     category: "ui",
-    check: (f) => /radix/.test(f),
+    // FIX: /radix/.test(f) too broad. Dep-based detection is primary.
+    check: (f) => false,
   },
   {
     id: "mui",
@@ -363,8 +405,8 @@ export const SIGNALS = [
     color: "#007FFF",
     textColor: "#ffffff",
     iconSlug: "mui",
-    category: "ui",
-    check: (f) => /mui/.test(f),
+    // FIX: /mui/.test(f) too broad. Dep-based detection is primary.
+    check: (f) => false,
   },
   {
     id: "chakra",
@@ -372,8 +414,8 @@ export const SIGNALS = [
     color: "#319795",
     textColor: "#ffffff",
     iconSlug: "chakraui",
-    category: "ui",
-    check: (f) => /chakra/.test(f),
+    // FIX: /chakra/.test(f) too broad. Dep-based detection is primary.
+    check: (f) => false,
   },
   {
     id: "antdesign",
@@ -382,7 +424,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "antdesign",
     category: "ui",
-    check: (f) => /ant-design/.test(f) || f === ".antdesignrc",
+    check: (f) => f === ".antdesignrc",
   },
   {
     id: "styledcomponents",
@@ -390,8 +432,8 @@ export const SIGNALS = [
     color: "#DB7093",
     textColor: "#ffffff",
     iconSlug: "styledcomponents",
-    category: "ui",
-    check: (f) => /styled-components/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "bootstrap",
@@ -400,7 +442,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "bootstrap",
     category: "ui",
-    check: (f) => /bootstrap/.test(f),
+    // Keep a file-based signal for bootstrap config
+    check: (f) => f === ".bootstraprc" || f === "bootstrap.config.js",
   },
   {
     id: "daisyui",
@@ -408,8 +451,8 @@ export const SIGNALS = [
     color: "#1AD1A5",
     textColor: "#000000",
     iconSlug: "daisyui",
-    category: "ui",
-    check: (f) => /daisyui/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "sass",
@@ -454,7 +497,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "framer",
     category: "ui",
-    check: (f) => /framer-motion/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
 
   // ── Build Tools ─────────────────────────────────────────────────────────────
@@ -492,7 +536,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "esbuild",
     category: "build",
-    check: (f) => /^esbuild/.test(f),
+    check: (f) => /^esbuild\.(config|build)\.(js|ts|mjs)$/.test(f),
   },
   {
     id: "turbo",
@@ -537,7 +581,11 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "bazel",
     category: "build",
-    check: (f) => f === "WORKSPACE" || f === "BUILD" || f === ".bazelrc",
+    check: (f) =>
+      f === "WORKSPACE" ||
+      f === "BUILD" ||
+      f === ".bazelrc" ||
+      f === "WORKSPACE.bazel",
   },
   {
     id: "gradle",
@@ -546,7 +594,11 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "gradle",
     category: "build",
-    check: (f) => /^build\.gradle/.test(f) || f === "gradlew",
+    check: (f) =>
+      /^build\.gradle/.test(f) ||
+      f === "gradlew" ||
+      f === "settings.gradle" ||
+      f === "settings.gradle.kts",
   },
   {
     id: "maven",
@@ -571,9 +623,10 @@ export const SIGNALS = [
     label: "Make",
     color: "#6D00CC",
     textColor: "#ffffff",
-    iconSlug: "cmake",
+    // FIX: was incorrectly using "cmake" iconSlug
+    iconSlug: "gnu",
     category: "build",
-    check: (f) => f === "Makefile" || f === "GNUmakefile",
+    check: (f) => f === "Makefile" || f === "GNUmakefile" || f === "makefile",
   },
   {
     id: "tsup",
@@ -591,7 +644,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "swc",
     category: "build",
-    check: (f) => f === ".swcrc",
+    check: (f) => f === ".swcrc" || f === "swc.config.js",
   },
   {
     id: "babel",
@@ -600,7 +653,11 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "babel",
     category: "build",
-    check: (f) => /^babel\.config/.test(f) || f === ".babelrc",
+    check: (f) =>
+      /^babel\.config/.test(f) ||
+      f === ".babelrc" ||
+      f === ".babelrc.js" ||
+      f === ".babelrc.json",
   },
   {
     id: "lerna",
@@ -616,7 +673,8 @@ export const SIGNALS = [
     label: "Changesets",
     color: "#0EA5E9",
     textColor: "#ffffff",
-    iconSlug: "semantic-release",
+    // FIX: was incorrectly using "semantic-release" iconSlug
+    iconSlug: "changesets",
     category: "build",
     check: (f) => f === ".changeset",
   },
@@ -631,8 +689,11 @@ export const SIGNALS = [
     category: "runtime",
     check: (f) =>
       f === "Dockerfile" ||
+      /^Dockerfile\./.test(f) ||
       f === "docker-compose.yml" ||
       f === "docker-compose.yaml" ||
+      f === "compose.yml" ||
+      f === "compose.yaml" ||
       f === ".dockerignore",
   },
   {
@@ -642,7 +703,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "deno",
     category: "runtime",
-    check: (f) => f === "deno.json" || f === "deno.jsonc",
+    check: (f) => f === "deno.json" || f === "deno.jsonc" || f === "deno.lock",
   },
   {
     id: "node",
@@ -651,7 +712,11 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "nodedotjs",
     category: "runtime",
-    check: (f) => f === ".nvmrc" || f === ".node-version" || f === ".npmrc",
+    check: (f) =>
+      f === ".nvmrc" ||
+      f === ".node-version" ||
+      f === ".npmrc" ||
+      f === ".nvmrc",
   },
   {
     id: "bun-runtime",
@@ -672,8 +737,10 @@ export const SIGNALS = [
     check: (f) =>
       f === "k8s" ||
       f === "kubernetes" ||
-      /\.k8s\.yml$/.test(f) ||
-      /^kustomization/.test(f),
+      /\.k8s\.ya?ml$/.test(f) ||
+      /^kustomization\.ya?ml$/.test(f) ||
+      f === "k8s.yaml" ||
+      f === "k8s.yml",
   },
   {
     id: "wasm",
@@ -721,7 +788,13 @@ export const SIGNALS = [
     iconSlug: "python",
     category: "lang",
     check: (f) =>
-      f === "pyproject.toml" || f === "setup.py" || f === "requirements.txt",
+      f === "pyproject.toml" ||
+      f === "setup.py" ||
+      f === "setup.cfg" ||
+      f === "requirements.txt" ||
+      f === "requirements-dev.txt" ||
+      f === "requirements-prod.txt" ||
+      f === "Pipfile",
   },
   {
     id: "ruby",
@@ -739,7 +812,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "openjdk",
     category: "lang",
-    check: (f) => f === "pom.xml" || f === "build.gradle",
+    check: (f) =>
+      f === "pom.xml" || /^build\.gradle(\.kts)?$/.test(f) || /\.java$/.test(f),
   },
   {
     id: "dotnet",
@@ -748,7 +822,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "dotnet",
     category: "lang",
-    check: (f) => /\.csproj$/.test(f) || /\.sln$/.test(f),
+    check: (f) =>
+      /\.csproj$/.test(f) || /\.sln$/.test(f) || /\.fsproj$/.test(f),
   },
   {
     id: "elixir",
@@ -766,7 +841,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "haskell",
     category: "lang",
-    check: (f) => f === "cabal.project" || /\.cabal$/.test(f),
+    check: (f) =>
+      f === "cabal.project" || /\.cabal$/.test(f) || f === "stack.yaml",
   },
   {
     id: "zig",
@@ -775,7 +851,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "zig",
     category: "lang",
-    check: (f) => f === "build.zig",
+    check: (f) => f === "build.zig" || f === "build.zig.zon",
   },
   {
     id: "php",
@@ -784,7 +860,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "php",
     category: "lang",
-    check: (f) => f === "composer.json",
+    check: (f) => f === "composer.json" || /\.php$/.test(f),
   },
   {
     id: "swift",
@@ -793,7 +869,11 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "swift",
     category: "lang",
-    check: (f) => /Package\.swift/.test(f) || /\.xcodeproj$/.test(f),
+    check: (f) =>
+      /Package\.swift/.test(f) ||
+      /\.xcodeproj$/.test(f) ||
+      /\.xcworkspace$/.test(f) ||
+      /\.swift$/.test(f),
   },
   {
     id: "kotlin",
@@ -802,7 +882,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "kotlin",
     category: "lang",
-    check: (f) => /build\.gradle\.kts$/.test(f),
+    check: (f) =>
+      /build\.gradle\.kts$/.test(f) || /\.kt$/.test(f) || /\.kts$/.test(f),
   },
   {
     id: "dart",
@@ -811,7 +892,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "dart",
     category: "lang",
-    check: (f) => f === "pubspec.yaml",
+    check: (f) => f === "pubspec.yaml" || f === "pubspec.lock",
   },
   {
     id: "clojure",
@@ -820,7 +901,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "clojure",
     category: "lang",
-    check: (f) => f === "project.clj" || f === "deps.edn",
+    check: (f) =>
+      f === "project.clj" || f === "deps.edn" || f === "shadow-cljs.edn",
   },
   {
     id: "ocaml",
@@ -839,15 +921,6 @@ export const SIGNALS = [
     iconSlug: "nim",
     category: "lang",
     check: (f) => /\.nimble$/.test(f),
-  },
-  {
-    id: "v",
-    label: "V",
-    color: "#5D87BF",
-    textColor: "#ffffff",
-    iconSlug: "v",
-    category: "lang",
-    check: (f) => f === "v.mod",
   },
   {
     id: "gleam",
@@ -903,7 +976,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "yarn",
     category: "pkgmgr",
-    check: (f) => f === "yarn.lock",
+    check: (f) => f === "yarn.lock" || f === ".yarnrc.yml" || f === ".yarnrc",
   },
   {
     id: "pnpm",
@@ -912,7 +985,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "pnpm",
     category: "pkgmgr",
-    check: (f) => f === "pnpm-lock.yaml",
+    check: (f) => f === "pnpm-lock.yaml" || f === "pnpm-workspace.yaml",
   },
   {
     id: "bun",
@@ -930,7 +1003,10 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "pypi",
     category: "pkgmgr",
-    check: (f) => f === "requirements.txt" || f === "requirements-dev.txt",
+    check: (f) =>
+      f === "requirements.txt" ||
+      f === "requirements-dev.txt" ||
+      f === "requirements-prod.txt",
   },
   {
     id: "poetry",
@@ -948,7 +1024,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "astral",
     category: "pkgmgr",
-    check: (f) => f === "uv.lock",
+    check: (f) => f === "uv.lock" || f === ".python-version",
   },
   {
     id: "conda",
@@ -957,7 +1033,11 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "anaconda",
     category: "pkgmgr",
-    check: (f) => f === "environment.yml" || f === "conda.yml",
+    check: (f) =>
+      f === "environment.yml" ||
+      f === "environment.yaml" ||
+      f === "conda.yml" ||
+      f === "conda.yaml",
   },
   {
     id: "cargo",
@@ -1004,7 +1084,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "jest",
     category: "testing",
-    check: (f) => /^jest\.config/.test(f),
+    check: (f) =>
+      /^jest\.config/.test(f) || f === "jest.setup.js" || f === "jest.setup.ts",
   },
   {
     id: "vitest",
@@ -1022,7 +1103,7 @@ export const SIGNALS = [
     textColor: "#69D3A7",
     iconSlug: "cypress",
     category: "testing",
-    check: (f) => /^cypress\.config/.test(f),
+    check: (f) => /^cypress\.config/.test(f) || f === "cypress",
   },
   {
     id: "playwright",
@@ -1058,7 +1139,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "pytest",
     category: "testing",
-    check: (f) => /^pytest\.ini$/.test(f) || /^pyproject\.toml$/.test(f),
+    check: (f) => /^pytest\.ini$/.test(f) || f === "conftest.py",
   },
   {
     id: "rspec",
@@ -1075,8 +1156,8 @@ export const SIGNALS = [
     color: "#291A3D",
     textColor: "#ffffff",
     iconSlug: "testcontainers",
-    category: "testing",
-    check: (f) => /testcontainers/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "k6",
@@ -1085,7 +1166,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "k6",
     category: "testing",
-    check: (f) => /^k6/.test(f) || /k6\.config/.test(f),
+    check: (f) => /^k6\.config\.(js|ts)$/.test(f) || f === "k6.js",
   },
   {
     id: "selenium",
@@ -1094,7 +1175,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "selenium",
     category: "testing",
-    check: (f) => /selenium/.test(f),
+    // FIX: /selenium/.test(f) too broad; dep-based detection is primary
+    check: (f) => false,
   },
 
   // ── CI/CD ───────────────────────────────────────────────────────────────────
@@ -1168,7 +1250,9 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "argo",
     category: "cicd",
-    check: (f) => /argo/.test(f) || f === "argo-cd",
+    // FIX: /argo/.test(f) too broad
+    check: (f) =>
+      f === "argo-cd" || f === "argocd" || /^argo(cd)?-app\.ya?ml$/.test(f),
   },
   {
     id: "semantic-release",
@@ -1180,7 +1264,8 @@ export const SIGNALS = [
     check: (f) =>
       f === ".releaserc" ||
       /^\.releaserc\./.test(f) ||
-      f === "release.config.js",
+      f === "release.config.js" ||
+      f === "release.config.cjs",
   },
 
   // ── Databases / ORM ─────────────────────────────────────────────────────────
@@ -1191,7 +1276,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "prisma",
     category: "db",
-    check: (f) => f === "prisma",
+    check: (f) => f === "prisma" || f === "schema.prisma",
   },
   {
     id: "drizzle",
@@ -1218,7 +1303,11 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "firebase",
     category: "db",
-    check: (f) => f === "firebase.json" || f === ".firebaserc",
+    check: (f) =>
+      f === "firebase.json" ||
+      f === ".firebaserc" ||
+      f === "firestore.rules" ||
+      f === "firestore.indexes.json",
   },
   {
     id: "planetscale",
@@ -1245,7 +1334,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "mongodb",
     category: "db",
-    check: (f) => /mongodb/.test(f) || f === "mongod.conf",
+    check: (f) => f === "mongod.conf" || f === ".mongorc.js",
   },
   {
     id: "postgresql",
@@ -1254,7 +1343,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "postgresql",
     category: "db",
-    check: (f) => /postgres/.test(f) || f === "pg.config.js",
+    check: (f) => f === "pg.config.js" || f === "postgresql.conf",
   },
   {
     id: "mysql",
@@ -1263,7 +1352,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "mysql",
     category: "db",
-    check: (f) => f === "my.cnf" || /mysql/.test(f),
+    check: (f) => f === "my.cnf",
   },
   {
     id: "sqlite",
@@ -1272,7 +1361,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "sqlite",
     category: "db",
-    check: (f) => /\.sqlite$/.test(f) || /\.db$/.test(f),
+    check: (f) => /\.(sqlite|sqlite3|db)$/.test(f),
   },
   {
     id: "turso",
@@ -1280,8 +1369,8 @@ export const SIGNALS = [
     color: "#4FF8D2",
     textColor: "#000000",
     iconSlug: "turso",
-    category: "db",
-    check: (f) => /turso/.test(f),
+    // FIX: /turso/.test(f) too broad; dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "convex",
@@ -1316,8 +1405,8 @@ export const SIGNALS = [
     color: "#12FFF7",
     textColor: "#000000",
     iconSlug: "neon",
-    category: "db",
-    check: (f) => /neon/.test(f),
+    // FIX: /neon/.test(f) too broad; dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "clickhouse",
@@ -1326,7 +1415,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "clickhouse",
     category: "db",
-    check: (f) => /clickhouse/.test(f),
+    check: (f) => f === "clickhouse.xml" || f === "config.xml",
   },
   {
     id: "elasticsearch",
@@ -1335,7 +1424,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "elasticsearch",
     category: "db",
-    check: (f) => /elasticsearch\.yml/.test(f),
+    check: (f) => /^elasticsearch\.ya?ml$/.test(f),
   },
   {
     id: "sqlalchemy",
@@ -1344,7 +1433,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "sqlalchemy",
     category: "db",
-    check: (f) => /alembic\.ini/.test(f) || f === "alembic",
+    check: (f) => f === "alembic.ini" || f === "alembic",
   },
 
   // ── Infra / Cloud ───────────────────────────────────────────────────────────
@@ -1355,7 +1444,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "vercel",
     category: "infra",
-    check: (f) => f === "vercel.json",
+    check: (f) => f === "vercel.json" || f === ".vercelignore",
   },
   {
     id: "netlify",
@@ -1364,7 +1453,8 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "netlify",
     category: "infra",
-    check: (f) => f === "netlify.toml",
+    check: (f) =>
+      f === "netlify.toml" || f === "_redirects" || f === "_headers",
   },
   {
     id: "flyio",
@@ -1382,7 +1472,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "terraform",
     category: "infra",
-    check: (f) => f === "terraform" || /\.tf$/.test(f),
+    check: (f) => f === "terraform" || /\.tf$/.test(f) || /\.tfvars$/.test(f),
   },
   {
     id: "aws-cdk",
@@ -1391,7 +1481,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "amazonaws",
     category: "infra",
-    check: (f) => f === "cdk.json",
+    check: (f) => f === "cdk.json" || f === "cdk.context.json",
   },
   {
     id: "pulumi",
@@ -1400,7 +1490,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "pulumi",
     category: "infra",
-    check: (f) => f === "Pulumi.yaml",
+    check: (f) => f === "Pulumi.yaml" || f === "Pulumi.yml",
   },
   {
     id: "serverless",
@@ -1409,7 +1499,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "serverless",
     category: "infra",
-    check: (f) => /^serverless\.(yml|yaml)$/.test(f),
+    check: (f) => /^serverless\.(yml|yaml|json|ts|js)$/.test(f),
   },
   {
     id: "render",
@@ -1436,7 +1526,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "cloudflare",
     category: "infra",
-    check: (f) => f === "wrangler.toml" || f === "wrangler.json",
+    check: (f) =>
+      f === "wrangler.toml" || f === "wrangler.json" || f === "wrangler.jsonc",
   },
   {
     id: "aws-sam",
@@ -1455,7 +1546,10 @@ export const SIGNALS = [
     iconSlug: "ansible",
     category: "infra",
     check: (f) =>
-      f === "ansible.cfg" || f === "playbook.yml" || f === "inventory",
+      f === "ansible.cfg" ||
+      f === "playbook.yml" ||
+      f === "inventory" ||
+      f === "site.yml",
   },
   {
     id: "helm",
@@ -1464,7 +1558,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "helm",
     category: "infra",
-    check: (f) => f === "Chart.yaml" || f === "values.yaml",
+    check: (f) => f === "Chart.yaml" || f === "Chart.yml",
   },
   {
     id: "nomad",
@@ -1473,7 +1567,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "hashicorp",
     category: "infra",
-    check: (f) => /\.nomad$/.test(f) || /^nomad/.test(f),
+    check: (f) => /\.nomad$/.test(f),
   },
   {
     id: "vault",
@@ -1482,7 +1576,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "vault",
     category: "infra",
-    check: (f) => /vault\.hcl/.test(f) || /^vault/.test(f),
+    check: (f) => f === "vault.hcl" || f === ".vault-token",
   },
   {
     id: "coolify",
@@ -1511,10 +1605,11 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "nextdotjs",
     category: "auth",
+    // FIX: improved path matching for common NextAuth file patterns
     check: (f) =>
-      /auth\.ts$/.test(f) ||
-      /auth\.js$/.test(f) ||
-      /\[\.\.\.nextauth\]/.test(f),
+      /^auth\.(ts|js|tsx|jsx)$/.test(f) ||
+      /\[\.\.\.nextauth\]/.test(f) ||
+      (/route\.(ts|js)$/.test(f) && /auth/.test(f)),
   },
   {
     id: "clerk",
@@ -1523,7 +1618,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "clerk",
     category: "auth",
-    check: (f) => /clerk/.test(f),
+    // FIX: /clerk/.test(f) too broad; dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "lucia",
@@ -1532,7 +1628,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "lucia",
     category: "auth",
-    check: (f) => /lucia/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "auth0",
@@ -1541,7 +1638,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "auth0",
     category: "auth",
-    check: (f) => /auth0/.test(f) || f === ".auth0.env",
+    check: (f) =>
+      f === ".auth0.env" || f === "auth0.config.js" || f === "auth_config.json",
   },
   {
     id: "keycloak",
@@ -1550,7 +1648,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "keycloak",
     category: "auth",
-    check: (f) => /keycloak/.test(f),
+    // FIX: /keycloak/.test(f) too broad
+    check: (f) => /^keycloak\.(json|yaml|yml|conf)$/.test(f),
   },
 
   // ── Monitoring / Observability ───────────────────────────────────────────────
@@ -1561,7 +1660,9 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "sentry",
     category: "monitoring",
-    check: (f) => /^sentry\./.test(f) || /sentry\.properties/.test(f),
+    check: (f) =>
+      /^sentry\.(client|server|edge)\.(ts|js|mjs)$/.test(f) ||
+      f === "sentry.properties",
   },
   {
     id: "datadog",
@@ -1570,7 +1671,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "datadog",
     category: "monitoring",
-    check: (f) => /datadog\.yaml/.test(f) || /^\.datadog/.test(f),
+    check: (f) => f === "datadog.yaml" || f === "datadog.yml",
   },
   {
     id: "grafana",
@@ -1579,7 +1680,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "grafana",
     category: "monitoring",
-    check: (f) => /grafana/.test(f),
+    check: (f) => f === "grafana.ini" || f === "grafana.yaml",
   },
   {
     id: "prometheus",
@@ -1597,7 +1698,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "opentelemetry",
     category: "monitoring",
-    check: (f) => /otel/.test(f) || /opentelemetry/.test(f),
+    check: (f) => /^otel-collector/.test(f) || /^opentelemetry/.test(f),
   },
   {
     id: "posthog",
@@ -1606,7 +1707,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "posthog",
     category: "monitoring",
-    check: (f) => /posthog/.test(f),
+    // FIX: /posthog/.test(f) too broad; dep-based detection is primary
+    check: (f) => false,
   },
 
   // ── Linting / Formatting ────────────────────────────────────────────────────
@@ -1620,7 +1722,9 @@ export const SIGNALS = [
     check: (f) =>
       /^\.eslintrc/.test(f) ||
       f === "eslint.config.js" ||
-      f === "eslint.config.mjs",
+      f === "eslint.config.mjs" ||
+      f === "eslint.config.cjs" ||
+      f === "eslint.config.ts",
   },
   {
     id: "prettier",
@@ -1629,7 +1733,10 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "prettier",
     category: "lint",
-    check: (f) => f === ".prettierrc" || /^\.prettierrc\./.test(f),
+    check: (f) =>
+      f === ".prettierrc" ||
+      /^\.prettierrc\./.test(f) ||
+      f === "prettier.config.js",
   },
   {
     id: "biome",
@@ -1638,7 +1745,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "biome",
     category: "lint",
-    check: (f) => f === "biome.json",
+    check: (f) => f === "biome.json" || f === "biome.jsonc",
   },
   {
     id: "oxlint",
@@ -1647,7 +1754,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "oxc",
     category: "lint",
-    check: (f) => f === "oxlint.json",
+    check: (f) => f === "oxlint.json" || f === ".oxlintrc",
   },
   {
     id: "stylelint",
@@ -1674,7 +1781,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "commitlint",
     category: "lint",
-    check: (f) => /^commitlint\.config/.test(f) || f === ".commitlintrc",
+    check: (f) =>
+      /^commitlint\.config\.(js|ts|cjs|mjs)$/.test(f) || f === ".commitlintrc",
   },
   {
     id: "husky",
@@ -1692,7 +1800,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "ruff",
     category: "lint",
-    check: (f) => f === "ruff.toml" || /\[tool\.ruff\]/.test(f),
+    check: (f) => f === "ruff.toml" || f === ".ruff.toml",
   },
   {
     id: "rubocop",
@@ -1701,7 +1809,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "rubygems",
     category: "lint",
-    check: (f) => f === ".rubocop.yml",
+    check: (f) => f === ".rubocop.yml" || f === ".rubocop.yaml",
   },
 
   // ── State Management ────────────────────────────────────────────────────────
@@ -1712,8 +1820,9 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "redux",
     category: "state",
-    check: (f) =>
-      /redux/.test(f) || /store\.ts$/.test(f) || /store\.js$/.test(f),
+    // FIX: /redux/.test(f) too broad; dep-based detection is primary
+    // store.ts / store.js too generic
+    check: (f) => false,
   },
   {
     id: "zustand",
@@ -1721,8 +1830,8 @@ export const SIGNALS = [
     color: "#443E38",
     textColor: "#ffffff",
     iconSlug: "zustand",
-    category: "state",
-    check: (f) => /zustand/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "jotai",
@@ -1730,8 +1839,8 @@ export const SIGNALS = [
     color: "#ffffff",
     textColor: "#000000",
     iconSlug: "jotai",
-    category: "state",
-    check: (f) => /jotai/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "mobx",
@@ -1739,8 +1848,8 @@ export const SIGNALS = [
     color: "#FF7102",
     textColor: "#ffffff",
     iconSlug: "mobx",
-    category: "state",
-    check: (f) => /mobx/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "xstate",
@@ -1749,7 +1858,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "xstate",
     category: "state",
-    check: (f) => /xstate/.test(f) || /\.machine\.ts$/.test(f),
+    // FIX: /\.machine\.ts$/ is somewhat reasonable, keep it
+    check: (f) => /\.machine\.(ts|js)$/.test(f),
   },
 
   // ── Mobile ──────────────────────────────────────────────────────────────────
@@ -1760,7 +1870,10 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "react",
     category: "mobile",
-    check: (f) => f === "metro.config.js" || f === "metro.config.ts",
+    check: (f) =>
+      f === "metro.config.js" ||
+      f === "metro.config.ts" ||
+      f === "react-native.config.js",
   },
   {
     id: "flutter",
@@ -1789,7 +1902,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "langchain",
     category: "ai",
-    check: (f) => /langchain/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "openai",
@@ -1798,7 +1912,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "openai",
     category: "ai",
-    check: (f) => /openai/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "huggingface",
@@ -1807,7 +1922,7 @@ export const SIGNALS = [
     textColor: "#000000",
     iconSlug: "huggingface",
     category: "ai",
-    check: (f) => /huggingface/.test(f) || f === "model_card.md",
+    check: (f) => f === "model_card.md" || f === ".huggingface",
   },
   {
     id: "pytorch",
@@ -1816,7 +1931,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "pytorch",
     category: "ai",
-    check: (f) => /torch/.test(f) || /pytorch/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "tensorflow",
@@ -1825,7 +1941,8 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "tensorflow",
     category: "ai",
-    check: (f) => /tensorflow/.test(f),
+    // FIX: dep-based detection is primary
+    check: (f) => false,
   },
   {
     id: "jupyter",
@@ -1843,7 +1960,7 @@ export const SIGNALS = [
     textColor: "#ffffff",
     iconSlug: "ollama",
     category: "ai",
-    check: (f) => f === "Modelfile" || /ollama/.test(f),
+    check: (f) => f === "Modelfile",
   },
 ];
 
@@ -1856,7 +1973,7 @@ export const EXT_LANGS = [
     textColor: "#ffffff",
     iconSlug: "typescript",
     category: "lang",
-    exts: [".ts", ".tsx"],
+    exts: [".ts", ".tsx", ".mts", ".cts"],
   },
   {
     id: "javascript",
@@ -1865,7 +1982,7 @@ export const EXT_LANGS = [
     textColor: "#000000",
     iconSlug: "javascript",
     category: "lang",
-    exts: [".js", ".jsx", ".mjs"],
+    exts: [".js", ".jsx", ".mjs", ".cjs"],
   },
   {
     id: "python",
