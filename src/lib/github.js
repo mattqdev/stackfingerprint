@@ -1,10 +1,6 @@
 // src/lib/github.js
 
 // ── Auth headers ───────────────────────────────────────────────────────────
-// Set GITHUB_TOKEN in your Vercel environment variables to raise the rate
-// limit from 60 req/hour (unauthenticated) to 5,000 req/hour (authenticated).
-// Get a token at: https://github.com/settings/tokens
-// No scopes needed — public repo access is available without any scope.
 function ghHeaders() {
   const token = process.env.GITHUB_TOKEN;
   return {
@@ -14,13 +10,10 @@ function ghHeaders() {
 }
 
 // ── Fetch with retry ───────────────────────────────────────────────────────
-// GitHub's API occasionally returns transient 5xx errors. A single retry
-// with a short delay recovers the vast majority of these cases.
 async function fetchWithRetry(url, options, retries = 1) {
   const res = await fetch(url, options);
 
   if (res.status === 403) {
-    // Check if it's a rate limit vs a plain permission error
     const body = await res.json().catch(() => ({}));
     const isRateLimit =
       res.headers.get("x-ratelimit-remaining") === "0" ||
@@ -30,7 +23,6 @@ async function fetchWithRetry(url, options, retries = 1) {
   if (res.status === 404) throw new Error("NOT_FOUND");
   if (res.status === 401) throw new Error("BAD_TOKEN");
 
-  // Retry on transient server errors
   if (res.status >= 500 && retries > 0) {
     await new Promise((r) => setTimeout(r, 400));
     return fetchWithRetry(url, options, retries - 1);
@@ -41,7 +33,6 @@ async function fetchWithRetry(url, options, retries = 1) {
 }
 
 // ── Rate limit status ──────────────────────────────────────────────────────
-// Returns remaining requests and reset time so callers can surface this in UI.
 export async function fetchRateLimit() {
   try {
     const res = await fetch("https://api.github.com/rate_limit", {
@@ -63,13 +54,42 @@ export async function fetchRateLimit() {
   }
 }
 
-// ── Contents API ───────────────────────────────────────────────────────────
+// ── Contents API (kept for compatibility) ─────────────────────────────────
 export async function fetchContents(owner, repo, path = "") {
   const res = await fetchWithRetry(
     `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
     { headers: ghHeaders() }
   );
   return res.json();
+}
+
+// ── Git Trees API ──────────────────────────────────────────────────────────
+// Returns every file path in the repo in a single request.
+// Uses recursive=1 so the entire tree is flattened — no per-directory calls.
+// Truncated is set by GitHub for repos with >100k objects; we detect and
+// fall back to the key-subdir strategy in that case.
+export async function fetchTree(owner, repo) {
+  // First get the default branch SHA from the repo metadata
+  const metaRes = await fetchWithRetry(
+    `https://api.github.com/repos/${owner}/${repo}`,
+    { headers: ghHeaders() }
+  );
+  const meta = await metaRes.json();
+  const branch = meta.default_branch ?? "main";
+
+  const treeRes = await fetchWithRetry(
+    `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
+    { headers: ghHeaders() }
+  );
+  const data = await treeRes.json();
+
+  return {
+    // Array of { path, type, url, size } — type is "blob" (file) or "tree" (dir)
+    tree: data.tree ?? [],
+    // GitHub truncates the tree for very large repos (>100k objects)
+    truncated: data.truncated ?? false,
+    branch,
+  };
 }
 
 // ── Repo metadata ──────────────────────────────────────────────────────────

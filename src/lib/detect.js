@@ -1,41 +1,8 @@
 // src/lib/detect.js
 import { SIGNALS, EXT_LANGS, CATEGORY_META } from "../data/signals";
-
-const KEY_SUBDIRS = [
-  "src",
-  "app",
-  "pages",
-  "lib",
-  "prisma",
-  "terraform",
-  ".github",
-  ".circleci",
-  "supabase",
-  "src-tauri",
-  ".storybook",
-  "config",
-  "scripts",
-  "infra",
-  "deploy",
-  "k8s",
-  "kubernetes",
-  ".husky",
-  "convex",
-  "pocketbase",
-  "spec",
-  "test",
-  "tests",
-  "__tests__",
-  "migrations",
-  "db",
-  "database",
-  "ci",
-  ".woodpecker",
-];
+import { fetchTree } from "./github";
 
 // ── Dependency → signal ID mapping ────────────────────────────────────────
-// Maps npm/pip/composer/etc. package names to signal IDs.
-// Keys are lowercase package name patterns (substring match).
 const DEP_SIGNALS = {
   // Frameworks
   next: "nextjs",
@@ -62,9 +29,8 @@ const DEP_SIGNALS = {
   "react-native": "reactnative",
 
   // UI Libraries
-  "@shadcn/ui": "shadcn",
   tailwindcss: "tailwind",
-  "@radix-ui/react": "radix",
+  "@radix-ui/react-primitive": "radix",
   "@mui/material": "mui",
   "@material-ui/core": "mui",
   "@chakra-ui/react": "chakra",
@@ -86,7 +52,6 @@ const DEP_SIGNALS = {
   tsup: "tsup",
   "@swc/core": "swc",
   "@swc/cli": "swc",
-  babel: "babel",
   "@babel/core": "babel",
 
   // Testing
@@ -95,10 +60,9 @@ const DEP_SIGNALS = {
   cypress: "cypress",
   "@playwright/test": "playwright",
   playwright: "playwright",
-  storybook: "storybook",
   "@storybook/react": "storybook",
+  "@storybook/nextjs": "storybook",
   mocha: "mocha",
-  pytest: "pytest",
 
   // Databases / ORM
   "@prisma/client": "prisma",
@@ -113,15 +77,13 @@ const DEP_SIGNALS = {
   pg: "postgresql",
   postgres: "postgresql",
   mysql2: "mysql",
-  mysql: "mysql",
   "better-sqlite3": "sqlite",
   "@libsql/client": "turso",
   convex: "convex",
-  "@neon-tech/serverless": "neon",
   "@neondatabase/serverless": "neon",
+  "@neon-tech/serverless": "neon",
   clickhouse: "clickhouse",
   elasticsearch: "elasticsearch",
-  sqlalchemy: "sqlalchemy",
 
   // Auth
   "next-auth": "nextauth",
@@ -144,10 +106,9 @@ const DEP_SIGNALS = {
   "@sentry/nextjs": "sentry",
   "@sentry/node": "sentry",
   "@sentry/react": "sentry",
-  sentry: "sentry",
   "dd-trace": "datadog",
-  posthog: "posthog",
   "posthog-js": "posthog",
+  posthog: "posthog",
 
   // AI / ML
   langchain: "langchain",
@@ -156,19 +117,15 @@ const DEP_SIGNALS = {
   "@huggingface/inference": "huggingface",
   ollama: "ollama",
 
-  // Infra
-  "@vercel/analytics": "vercel",
-
   // Linting / Formatting
   eslint: "eslint",
   prettier: "prettier",
   "@biomejs/biome": "biome",
-  biome: "biome",
   stylelint: "stylelint",
   husky: "husky",
 };
 
-// ── Python dependency patterns ─────────────────────────────────────────────
+// ── Python dependency → signal ID ─────────────────────────────────────────
 const PYTHON_DEP_SIGNALS = {
   django: "django",
   flask: "flask",
@@ -183,51 +140,15 @@ const PYTHON_DEP_SIGNALS = {
   langchain: "langchain",
   openai: "openai",
   transformers: "huggingface",
-  celery: null, // no signal yet
   redis: "redis",
   psycopg2: "postgresql",
+  "psycopg2-binary": "postgresql",
+  asyncpg: "postgresql",
   pymongo: "mongodb",
   motor: "mongodb",
 };
 
-// ── Parse package.json dependencies ───────────────────────────────────────
-function parsePkgJsonDeps(content) {
-  try {
-    const pkg = JSON.parse(content);
-    const allDeps = {
-      ...pkg.dependencies,
-      ...pkg.devDependencies,
-      ...pkg.peerDependencies,
-    };
-    return Object.keys(allDeps);
-  } catch {
-    return [];
-  }
-}
-
-// ── Parse requirements.txt / pyproject.toml ────────────────────────────────
-function parsePythonDeps(content, filename) {
-  const deps = new Set();
-  if (filename === "requirements.txt" || filename.startsWith("requirements")) {
-    // Parse requirements.txt: each line is "package==version" or "package>=version" etc.
-    content.split("\n").forEach((line) => {
-      const trimmed = line.trim().toLowerCase();
-      if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("-"))
-        return;
-      const match = trimmed.match(/^([a-z0-9_\-.]+)/);
-      if (match) deps.add(match[1]);
-    });
-  } else if (filename === "pyproject.toml") {
-    // Basic TOML parsing for dependencies
-    content.split("\n").forEach((line) => {
-      const match = line.match(/"([a-z0-9_\-.]+)/i);
-      if (match) deps.add(match[1].toLowerCase());
-    });
-  }
-  return [...deps];
-}
-
-// ── Parse Gemfile ──────────────────────────────────────────────────────────
+// ── Ruby Gemfile → signal ID ───────────────────────────────────────────────
 const RUBY_DEP_SIGNALS = {
   rails: "rails",
   "ruby-on-rails": "rails",
@@ -235,6 +156,47 @@ const RUBY_DEP_SIGNALS = {
   "rspec-rails": "rspec",
   rubocop: "rubocop",
 };
+
+// ── PHP composer.json → signal ID ─────────────────────────────────────────
+const PHP_DEP_SIGNALS = {
+  "laravel/framework": "laravel",
+  "symfony/symfony": "symfony",
+  "symfony/framework-bundle": "symfony",
+};
+
+// ── Parse helpers ──────────────────────────────────────────────────────────
+function parsePkgJsonDeps(content) {
+  try {
+    const pkg = JSON.parse(content);
+    return Object.keys({
+      ...pkg.dependencies,
+      ...pkg.devDependencies,
+      ...pkg.peerDependencies,
+    });
+  } catch {
+    return [];
+  }
+}
+
+function parsePythonDeps(content) {
+  const deps = [];
+  content.split("\n").forEach((line) => {
+    const trimmed = line.trim().toLowerCase();
+    if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("-")) return;
+    const match = trimmed.match(/^([a-z0-9_\-.]+)/);
+    if (match) deps.push(match[1]);
+  });
+  return deps;
+}
+
+function parsePyprojectDeps(content) {
+  const deps = [];
+  content.split("\n").forEach((line) => {
+    const match = line.match(/^\s*["']?([a-zA-Z0-9_\-.]+)["']?\s*[>=<!]/);
+    if (match) deps.push(match[1].toLowerCase());
+  });
+  return deps;
+}
 
 function parseGemfileDeps(content) {
   const deps = [];
@@ -244,14 +206,6 @@ function parseGemfileDeps(content) {
   });
   return deps;
 }
-
-// ── Parse composer.json ────────────────────────────────────────────────────
-const PHP_DEP_SIGNALS = {
-  "laravel/framework": "laravel",
-  "symfony/symfony": "symfony",
-  "symfony/framework-bundle": "symfony",
-  "slim/slim": null,
-};
 
 function parseComposerDeps(content) {
   try {
@@ -268,191 +222,227 @@ function resolveNpmDeps(depNames, signalsById) {
   for (const dep of depNames) {
     const lower = dep.toLowerCase();
     for (const [pattern, signalId] of Object.entries(DEP_SIGNALS)) {
-      if (signalId && (lower === pattern || lower.startsWith(pattern + "/"))) {
+      if (!signalId) continue;
+      if (lower === pattern || lower.startsWith(pattern + "/")) {
         if (signalsById.has(signalId)) found.add(signalId);
         break;
       }
+    }
+    // Detect TypeScript from @types/* or "typescript" package
+    if (lower.startsWith("@types/") || lower === "typescript") {
+      found.add("typescript");
     }
   }
   return found;
 }
 
+// ── Files we want to fetch content for (dep scanning) ─────────────────────
+const DEP_FILES = new Set([
+  "package.json",
+  "requirements.txt",
+  "requirements-dev.txt",
+  "requirements-prod.txt",
+  "pyproject.toml",
+  "Gemfile",
+  "composer.json",
+  "go.mod",
+  "Pipfile",
+]);
+
+// ── Fallback: root + key-subdir strategy ──────────────────────────────────
+// Used only when the Trees API fails (permissions, network error, etc.)
+const KEY_SUBDIRS = new Set([
+  "src",
+  "app",
+  "pages",
+  "lib",
+  "prisma",
+  "terraform",
+  ".github",
+  ".circleci",
+  "supabase",
+  "src-tauri",
+  ".storybook",
+  "config",
+  "scripts",
+  "infra",
+  "deploy",
+  "k8s",
+  "kubernetes",
+  ".husky",
+  "convex",
+  "pocketbase",
+  "spec",
+  "test",
+  "tests",
+  "__tests__",
+]);
+
+async function fallbackPaths(owner, repo, fetchFn) {
+  const paths = [];
+  try {
+    const root = await fetchFn(owner, repo);
+    root.forEach((f) => paths.push(f.name));
+    const subdirs = root.filter(
+      (f) => f.type === "dir" && KEY_SUBDIRS.has(f.name)
+    );
+    await Promise.allSettled(
+      subdirs.map(async (d) => {
+        try {
+          const sub = await fetchFn(owner, repo, d.path);
+          sub.forEach((f) => paths.push(`${d.name}/${f.name}`));
+          paths.push(d.name);
+        } catch {}
+      })
+    );
+  } catch {}
+  return paths;
+}
+
+// ── Main export ────────────────────────────────────────────────────────────
 export async function detectStack(owner, repo, fetchFn) {
-  const allFiles = new Set();
-  // Map from filename → file content (for dep parsing)
-  const fileContents = new Map();
-
-  // ── Fetch root ─────────────────────────────────────────────────────────
-  const root = await fetchFn(owner, repo);
-  root.forEach((f) => {
-    allFiles.add(f.name);
-    // Track downloadable content files
-    if (
-      [
-        "package.json",
-        "requirements.txt",
-        "pyproject.toml",
-        "Gemfile",
-        "composer.json",
-        "go.mod",
-        "Cargo.toml",
-        "go.sum",
-      ].includes(f.name) &&
-      f.download_url
-    ) {
-      fileContents.set(f.name, f.download_url);
-    }
-  });
-
-  // ── Fetch key subdirectories ───────────────────────────────────────────
-  const subdirs = root.filter(
-    (f) => f.type === "dir" && KEY_SUBDIRS.includes(f.name)
-  );
-
-  await Promise.allSettled(
-    subdirs.map(async (d) => {
-      try {
-        const sub = await fetchFn(owner, repo, d.path);
-        sub.forEach((f) => {
-          allFiles.add(f.name);
-          allFiles.add(`${d.name}/${f.name}`); // also add with parent prefix for path-based checks
-          if (
-            f.name === "package.json" &&
-            f.download_url &&
-            !fileContents.has("package.json")
-          ) {
-            fileContents.set("package.json", f.download_url);
-          }
-        });
-        allFiles.add(d.name); // dir itself is a signal
-      } catch {}
-    })
-  );
-
-  // ── Build signal lookup ────────────────────────────────────────────────
   const signalsById = new Map(SIGNALS.map((s) => [s.id, s]));
-
-  // ── Filename-based detection ───────────────────────────────────────────
   const detected = new Map();
 
-  for (const filename of allFiles) {
-    // Check against the bare filename (last segment)
-    const bare = filename.includes("/") ? filename.split("/").pop() : filename;
+  // ── Step 1: Fetch the full file tree (2 API calls total) ─────────────────
+  // GET /repos/{owner}/{repo}           → learn default branch name
+  // GET /repos/{owner}/{repo}/git/trees/{branch}?recursive=1 → all file paths
+  //
+  // For repos with >100k objects GitHub truncates the result; we log a warning
+  // but still process whatever we got — it covers the vast majority of repos.
+  let allPaths = [];
 
+  try {
+    const { tree, truncated } = await fetchTree(owner, repo);
+    allPaths = tree.map((entry) => entry.path);
+    if (truncated) {
+      console.warn(
+        `[detect] Tree truncated for ${owner}/${repo} (>100k objects)`
+      );
+    }
+  } catch {
+    // Trees API unavailable — fall back to the old root + key-subdir scan
+    allPaths = await fallbackPaths(owner, repo, fetchFn);
+  }
+
+  // ── Step 2: Filename-based signal matching ────────────────────────────────
+  // Match each full path AND its bare filename so signal checks written for
+  // bare names (e.g. "Dockerfile", "next.config.ts") still fire correctly
+  // even when the file is inside a subdirectory.
+  const seenBare = new Set();
+
+  for (const fullPath of allPaths) {
+    const bare = fullPath.includes("/") ? fullPath.split("/").pop() : fullPath;
+
+    // Full-path check — catches dir-name signals like ".github", "prisma", "k8s"
     for (const sig of SIGNALS) {
-      if (!detected.has(sig.id) && sig.check(bare)) {
+      if (!detected.has(sig.id) && sig.check(fullPath)) {
         detected.set(sig.id, sig);
       }
     }
 
-    // Also check full path for path-sensitive signals
-    if (filename.includes("/")) {
+    // Bare-filename check (deduplicated per unique basename to avoid N² work)
+    if (!seenBare.has(bare)) {
+      seenBare.add(bare);
+
       for (const sig of SIGNALS) {
-        if (!detected.has(sig.id) && sig.check(filename)) {
+        if (!detected.has(sig.id) && sig.check(bare)) {
           detected.set(sig.id, sig);
         }
       }
-    }
 
-    // Extension-based language detection
-    const dot = bare.lastIndexOf(".");
-    if (dot !== -1) {
-      const ext = bare.slice(dot).toLowerCase();
-      for (const lang of EXT_LANGS) {
-        if (!detected.has(lang.id) && lang.exts.includes(ext)) {
-          detected.set(lang.id, lang);
+      // Extension → language
+      const dot = bare.lastIndexOf(".");
+      if (dot !== -1) {
+        const ext = bare.slice(dot).toLowerCase();
+        for (const lang of EXT_LANGS) {
+          if (!detected.has(lang.id) && lang.exts.includes(ext)) {
+            detected.set(lang.id, lang);
+          }
         }
       }
     }
   }
 
-  // ── Dependency-file-based detection ───────────────────────────────────
-  const depFetches = [];
+  // ── Step 3: Dependency-file content scanning ──────────────────────────────
+  // Find every dep file anywhere in the tree; prefer the shallowest copy
+  // (root package.json beats src/package.json).
+  const depFileUrls = new Map(); // bare filename → { depth, url }
 
-  for (const [filename, url] of fileContents.entries()) {
-    depFetches.push(
-      fetch(url)
-        .then((r) => (r.ok ? r.text() : null))
-        .then((content) => {
-          if (!content) return;
+  for (const fullPath of allPaths) {
+    const bare = fullPath.includes("/") ? fullPath.split("/").pop() : fullPath;
 
-          if (filename === "package.json") {
-            const deps = parsePkgJsonDeps(content);
-            const resolvedIds = resolveNpmDeps(deps, signalsById);
-            for (const id of resolvedIds) {
-              if (!detected.has(id)) {
-                detected.set(id, signalsById.get(id));
-              }
-            }
-            // Also detect TypeScript if @types/* packages present
-            if (
-              deps.some((d) => d.startsWith("@types/") || d === "typescript")
-            ) {
-              if (!detected.has("typescript")) {
-                const tsSig = EXT_LANGS.find((l) => l.id === "typescript");
-                if (tsSig) detected.set("typescript", tsSig);
-              }
-            }
-          } else if (
-            filename === "requirements.txt" ||
-            filename === "pyproject.toml"
-          ) {
-            const deps = parsePythonDeps(content, filename);
-            for (const dep of deps) {
-              const signalId = PYTHON_DEP_SIGNALS[dep];
-              if (
-                signalId &&
-                !detected.has(signalId) &&
-                signalsById.has(signalId)
-              ) {
-                detected.set(signalId, signalsById.get(signalId));
-              }
-            }
-          } else if (filename === "Gemfile") {
-            const deps = parseGemfileDeps(content);
-            for (const dep of deps) {
-              const signalId = RUBY_DEP_SIGNALS[dep];
-              if (
-                signalId &&
-                !detected.has(signalId) &&
-                signalsById.has(signalId)
-              ) {
-                detected.set(signalId, signalsById.get(signalId));
-              }
-            }
-          } else if (filename === "composer.json") {
-            const deps = parseComposerDeps(content);
-            for (const dep of deps) {
-              const signalId = PHP_DEP_SIGNALS[dep];
-              if (
-                signalId &&
-                !detected.has(signalId) &&
-                signalsById.has(signalId)
-              ) {
-                detected.set(signalId, signalsById.get(signalId));
-              }
-            }
-          } else if (filename === "go.mod") {
-            // Detect gin, fiber, echo etc. from go.mod requires
-            content.split("\n").forEach((line) => {
-              const trimmed = line.trim();
-              if (trimmed.includes("gin-gonic/gin"))
-                detected.set("gin", signalsById.get("gin"));
-              if (trimmed.includes("gofiber/fiber"))
-                detected.set("fiber", signalsById.get("fiber"));
-              if (trimmed.includes("labstack/echo")) {
-                // echo not in signals but could be added
-              }
-            });
-          }
-        })
-        .catch(() => null)
-    );
+    if (!DEP_FILES.has(bare)) continue;
+
+    const depth = fullPath.split("/").length;
+    const existing = depFileUrls.get(bare);
+    if (!existing || depth < existing.depth) {
+      depFileUrls.set(bare, {
+        depth,
+        // raw.githubusercontent.com serves file contents without auth and
+        // without counting against the API rate limit.
+        url: `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${fullPath}`,
+      });
+    }
   }
 
-  await Promise.allSettled(depFetches);
+  await Promise.allSettled(
+    [...depFileUrls.entries()].map(async ([filename, { url }]) => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const content = await res.text();
 
-  // ── Sort by category order ─────────────────────────────────────────────
+        if (filename === "package.json") {
+          const deps = parsePkgJsonDeps(content);
+          for (const id of resolveNpmDeps(deps, signalsById)) {
+            if (!detected.has(id)) detected.set(id, signalsById.get(id));
+          }
+        } else if (
+          filename === "requirements.txt" ||
+          filename === "requirements-dev.txt" ||
+          filename === "requirements-prod.txt" ||
+          filename === "Pipfile"
+        ) {
+          for (const dep of parsePythonDeps(content)) {
+            const id = PYTHON_DEP_SIGNALS[dep];
+            if (id && !detected.has(id) && signalsById.has(id))
+              detected.set(id, signalsById.get(id));
+          }
+        } else if (filename === "pyproject.toml") {
+          for (const dep of parsePyprojectDeps(content)) {
+            const id = PYTHON_DEP_SIGNALS[dep];
+            if (id && !detected.has(id) && signalsById.has(id))
+              detected.set(id, signalsById.get(id));
+          }
+        } else if (filename === "Gemfile") {
+          for (const dep of parseGemfileDeps(content)) {
+            const id = RUBY_DEP_SIGNALS[dep];
+            if (id && !detected.has(id) && signalsById.has(id))
+              detected.set(id, signalsById.get(id));
+          }
+        } else if (filename === "composer.json") {
+          for (const dep of parseComposerDeps(content)) {
+            const id = PHP_DEP_SIGNALS[dep];
+            if (id && !detected.has(id) && signalsById.has(id))
+              detected.set(id, signalsById.get(id));
+          }
+        } else if (filename === "go.mod") {
+          content.split("\n").forEach((line) => {
+            const t = line.trim();
+            if (t.includes("gin-gonic/gin") && !detected.has("gin"))
+              detected.set("gin", signalsById.get("gin"));
+            if (t.includes("gofiber/fiber") && !detected.has("fiber"))
+              detected.set("fiber", signalsById.get("fiber"));
+          });
+        }
+      } catch {
+        // Dep scanning is best-effort — silently skip failures
+      }
+    })
+  );
+
+  // ── Step 4: Sort by category order ────────────────────────────────────────
   const catOrder = Object.fromEntries(
     Object.entries(CATEGORY_META).map(([k, v]) => [k, v.order])
   );
