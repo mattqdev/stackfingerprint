@@ -49,6 +49,54 @@ export const LAYOUTS = [
     pillRows: 99,
     maxPills: 40,
   },
+
+  // ── New layouts ───────────────────────────────────────────────────────────
+
+  {
+    id: "minimal",
+    label: "Minimal",
+    icon: "—",
+    desc: "Pills only, no chrome — cleanest embed",
+    dims: { w: 560, h: 80 },
+    pillRows: 1,
+    maxPills: 10,
+  },
+  {
+    id: "icons",
+    label: "Icons",
+    icon: "⊞",
+    desc: "Icon-only grid, maximum density",
+    dims: { w: 580, h: 160 },
+    pillRows: 99,
+    maxPills: 48,
+  },
+  {
+    id: "sidebar",
+    label: "Sidebar",
+    icon: "▏",
+    desc: "Narrow strip, one pill per row",
+    dims: { w: 160, h: 600 },
+    pillRows: 99,
+    maxPills: 30,
+  },
+  {
+    id: "split",
+    label: "Split",
+    icon: "◫",
+    desc: "Left: repo info · Right: pill grid",
+    dims: { w: 680, h: 220 },
+    pillRows: 4,
+    maxPills: 20,
+  },
+  {
+    id: "cards",
+    label: "Cards",
+    icon: "⊟",
+    desc: "Each tech gets its own named tile",
+    dims: { w: 580, h: 280 },
+    pillRows: 99,
+    maxPills: 20,
+  },
 ];
 
 // ── Size ───────────────────────────────────────────────────────────────────
