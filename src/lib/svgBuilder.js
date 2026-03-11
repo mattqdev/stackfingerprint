@@ -231,26 +231,26 @@ function overflowBadge(overflow, x, y, PH, PR, theme) {
 // Header + up to 3 centred pill rows. The general-purpose default.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
-  const layout = LAYOUTS.find((l) => l.id === "classic");
+  const W = 600;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
-  const W = layout.dims.w,
-    H = layout.dims.h;
   const PH = 28,
     PR = cfg.pillShape === "square" ? 4 : cfg.pillShape === "round" ? 8 : 14;
   const FS = 11,
     IW = 14,
     GAP = 8;
+  const HEADER_H = 76; // space above first pill row
+  const FOOTER_H = 28; // space below last pill row
+  const PAD_V = 8; // vertical pad between rows
 
-  const visible = stack.slice(0, layout.maxPills);
-  const overflow = stack.length - visible.length;
-  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 3, cfg.iconStyle);
+  // No cap — pack all pills into as many rows as needed
+  const rows = layoutPills(stack, W, PH, FS, IW, GAP, Infinity, cfg.iconStyle);
 
   let pillsSVG = "";
   rows.forEach((row, ri) => {
     const totalW = row.reduce((a, p) => a + p.pw + GAP, -GAP);
     let x = (W - totalW) / 2;
-    const y = 84 + ri * (PH + GAP);
+    const y = HEADER_H + ri * (PH + PAD_V);
     row.forEach((p) => {
       pillsSVG += renderPill(
         p,
@@ -268,16 +268,12 @@ function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
     });
   });
 
-  if (overflow > 0 && cfg.dataFields.overflowBadge && rows.length > 0) {
-    const lr = rows[rows.length - 1];
-    const totalW = lr.reduce((a, p) => a + p.pw + GAP, -GAP);
-    const bx = (W + totalW) / 2 + GAP + 4;
-    const by = 84 + (rows.length - 1) * (PH + GAP);
-    pillsSVG += overflowBadge(overflow, bx, by, PH, PR, theme);
-  }
-
   if (!stack.length)
     pillsSVG = `<text x="${W / 2}" y="130" text-anchor="middle" font-family="ui-monospace,monospace" font-size="12" fill="${theme.muted}">minimal stack detected</text>`;
+
+  // Height shrinks/grows to exactly fit content
+  const gridH = rows.length > 0 ? rows.length * (PH + PAD_V) - PAD_V : PH;
+  const H = HEADER_H + gridH + FOOTER_H;
 
   return buildWrapper(
     W,
@@ -309,8 +305,7 @@ function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
 // Single pill row, minimal height. Best for inline embeds.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildCompact(owner, repo, stack, theme, cfg, iconBase64Map) {
-  const W = 500,
-    H = 110;
+  const W = 500;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
   const PH = 22,
@@ -318,91 +313,19 @@ function buildCompact(owner, repo, stack, theme, cfg, iconBase64Map) {
   const FS = 9,
     IW = 11,
     GAP = 6;
+  const HEADER_H = 50,
+    FOOTER_H = 18,
+    ROW_PAD = 8;
 
-  const visible = stack.slice(0, 7);
-  const overflow = stack.length - visible.length;
-  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 1, cfg.iconStyle);
-
-  let pillsSVG = "";
-  if (rows[0]) {
-    const totalW = rows[0].reduce((a, p) => a + p.pw + GAP, -GAP);
-    let x = (W - totalW) / 2;
-    const y = 58;
-    rows[0].forEach((p) => {
-      pillsSVG += renderPill(
-        p,
-        x,
-        y,
-        PH,
-        PR,
-        FS,
-        IW,
-        cfg.iconStyle,
-        theme.accent,
-        iconBase64Map
-      );
-      x += p.pw + GAP;
-    });
-    if (overflow > 0 && cfg.dataFields.overflowBadge) {
-      pillsSVG += overflowBadge(
-        overflow,
-        (W + totalW) / 2 + 10,
-        58,
-        PH,
-        PR,
-        theme
-      );
-    }
-  }
-
-  return buildWrapper(
-    W,
-    H,
-    scale,
-    theme,
-    cfg,
-    owner,
-    repo,
-    stack.length,
-    `
-    ${
-      cfg.dataFields.repoName
-        ? `<text x="20" y="36" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="14" font-weight="700" letter-spacing="-0.2">
-      <tspan fill="${theme.owner}">${esc(owner)}</tspan><tspan fill="${theme.slash}">/</tspan><tspan fill="${theme.title}">${esc(repo)}</tspan>
-    </text>`
-        : ""
-    }
-    ${cfg.dataFields.signalCount ? `<text x="20" y="48" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="1.5">${stack.length} SIGNALS</text>` : ""}
-    ${pillsSVG}
-    ${cfg.dataFields.footerUrl ? `<text x="${W / 2}" y="${H - 10}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
-  `
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// ── Layout: BANNER ────────────────────────────────────────────────────────────
-// Wide landscape, 2-row pills. Good for project pages and social previews.
-// ══════════════════════════════════════════════════════════════════════════════
-function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
-  const W = 760,
-    H = 180;
-  const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
-  const scale = getSafeScale(sizeObj);
-  const PH = 26,
-    PR = cfg.pillShape === "square" ? 4 : cfg.pillShape === "round" ? 8 : 13;
-  const FS = 10,
-    IW = 13,
-    GAP = 7;
-
-  const visible = stack.slice(0, 24);
-  const overflow = stack.length - visible.length;
-  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 2, cfg.iconStyle);
+  // Pack all pills — compact stays single-row by design but if icononly is
+  // active the squares fit many more, so allow multiple rows.
+  const rows = layoutPills(stack, W, PH, FS, IW, GAP, Infinity, cfg.iconStyle);
 
   let pillsSVG = "";
   rows.forEach((row, ri) => {
     const totalW = row.reduce((a, p) => a + p.pw + GAP, -GAP);
     let x = (W - totalW) / 2;
-    const y = 70 + ri * (PH + 8);
+    const y = HEADER_H + ri * (PH + ROW_PAD);
     row.forEach((p) => {
       pillsSVG += renderPill(
         p,
@@ -420,13 +343,8 @@ function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
     });
   });
 
-  if (overflow > 0 && cfg.dataFields.overflowBadge && rows.length > 0) {
-    const lr = rows[rows.length - 1];
-    const totalW = lr.reduce((a, p) => a + p.pw + GAP, -GAP);
-    const bx = (W + totalW) / 2 + GAP + 4;
-    const by = 70 + (rows.length - 1) * (PH + 8);
-    pillsSVG += overflowBadge(overflow, bx, by, PH, PR, theme);
-  }
+  const gridH = rows.length > 0 ? rows.length * (PH + ROW_PAD) - ROW_PAD : PH;
+  const H = HEADER_H + gridH + FOOTER_H;
 
   return buildWrapper(
     W,
@@ -440,15 +358,83 @@ function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
     `
     ${
       cfg.dataFields.repoName
-        ? `<text x="24" y="44" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="18" font-weight="700" letter-spacing="-0.3">
+        ? `<text x="20" y="30" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="14" font-weight="700" letter-spacing="-0.2">
       <tspan fill="${theme.owner}">${esc(owner)}</tspan><tspan fill="${theme.slash}">/</tspan><tspan fill="${theme.title}">${esc(repo)}</tspan>
     </text>`
         : ""
     }
-    ${cfg.dataFields.signalCount ? `<text x="24" y="58" font-family="ui-monospace,monospace" font-size="9" fill="${theme.sub}" letter-spacing="1.5">STACK FINGERPRINT · ${stack.length} SIGNALS</text>` : ""}
+    ${cfg.dataFields.signalCount ? `<text x="20" y="44" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="1.5">${stack.length} SIGNALS</text>` : ""}
     ${pillsSVG}
-    ${cfg.dataFields.footerUrl ? `<text x="24" y="${H - 12}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
-    ${cfg.dataFields.brandLabel ? `<text x="${W - 24}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">stackfingerprint.vercel.app</text>` : ""}
+    ${cfg.dataFields.footerUrl ? `<text x="${W / 2}" y="${H - 6}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
+  `
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Layout: BANNER ────────────────────────────────────────────────────────────
+// Wide landscape, 2-row pills. Good for project pages and social previews.
+// ══════════════════════════════════════════════════════════════════════════════
+function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
+  const W = 760;
+  const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
+  const scale = getSafeScale(sizeObj);
+  const PH = 26,
+    PR = cfg.pillShape === "square" ? 4 : cfg.pillShape === "round" ? 8 : 13;
+  const FS = 10,
+    IW = 13,
+    GAP = 7;
+  const HEADER_H = 68,
+    FOOTER_H = 24,
+    ROW_PAD = 8;
+
+  const rows = layoutPills(stack, W, PH, FS, IW, GAP, Infinity, cfg.iconStyle);
+
+  let pillsSVG = "";
+  rows.forEach((row, ri) => {
+    const totalW = row.reduce((a, p) => a + p.pw + GAP, -GAP);
+    let x = (W - totalW) / 2;
+    const y = HEADER_H + ri * (PH + ROW_PAD);
+    row.forEach((p) => {
+      pillsSVG += renderPill(
+        p,
+        x,
+        y,
+        PH,
+        PR,
+        FS,
+        IW,
+        cfg.iconStyle,
+        theme.accent,
+        iconBase64Map
+      );
+      x += p.pw + GAP;
+    });
+  });
+
+  const gridH = rows.length > 0 ? rows.length * (PH + ROW_PAD) - ROW_PAD : PH;
+  const H = HEADER_H + gridH + FOOTER_H;
+
+  return buildWrapper(
+    W,
+    H,
+    scale,
+    theme,
+    cfg,
+    owner,
+    repo,
+    stack.length,
+    `
+    ${
+      cfg.dataFields.repoName
+        ? `<text x="24" y="40" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="18" font-weight="700" letter-spacing="-0.3">
+      <tspan fill="${theme.owner}">${esc(owner)}</tspan><tspan fill="${theme.slash}">/</tspan><tspan fill="${theme.title}">${esc(repo)}</tspan>
+    </text>`
+        : ""
+    }
+    ${cfg.dataFields.signalCount ? `<text x="24" y="56" font-family="ui-monospace,monospace" font-size="9" fill="${theme.sub}" letter-spacing="1.5">STACK FINGERPRINT · ${stack.length} SIGNALS</text>` : ""}
+    ${pillsSVG}
+    ${cfg.dataFields.footerUrl ? `<text x="24" y="${H - 8}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
+    ${cfg.dataFields.brandLabel ? `<text x="${W - 24}" y="${H - 8}" text-anchor="end" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">stackfingerprint.vercel.app</text>` : ""}
   `
   );
 }
@@ -534,8 +520,7 @@ function buildTall(owner, repo, stack, theme, cfg, iconBase64Map) {
 // Monospace CLI-style readout, text-only, no pill icons.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildTerminal(owner, repo, stack, theme, cfg) {
-  const W = 600,
-    H = 280;
+  const W = 600;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
 
@@ -548,7 +533,8 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
   });
   lines.push({ prompt: "", cmd: "", color: "transparent" });
 
-  groups.slice(0, 8).forEach(([cat, items]) => {
+  // No group cap — show all categories
+  groups.forEach(([cat, items]) => {
     const label = (CATEGORY_META[cat]?.label ?? cat).padEnd(12);
     lines.push({ label, vals: items.map((i) => i.label).join(", ") });
   });
@@ -562,6 +548,9 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
 
   const lineH = 18,
     startY = 54;
+  const FOOTER_H = 28;
+  const H = startY + lines.length * lineH + FOOTER_H;
+
   let linesVG = "";
   lines.forEach((ln, i) => {
     const y = startY + i * lineH;
@@ -594,8 +583,8 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
     <text x="${W / 2}" y="19" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="${theme.sub}" letter-spacing="1">TERMINAL</text>
     <line x1="0" y1="30" x2="${W}" y2="30" stroke="${theme.border}" stroke-width="1"/>
     ${linesVG}
-    ${cfg.dataFields.footerUrl ? `<text x="22" y="${H - 12}" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
-    ${cfg.dataFields.brandLabel ? `<text x="${W - 22}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">stackfingerprint.vercel.app</text>` : ""}
+    ${cfg.dataFields.footerUrl ? `<text x="22" y="${H - 10}" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
+    ${cfg.dataFields.brandLabel ? `<text x="${W - 22}" y="${H - 10}" text-anchor="end" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">stackfingerprint.vercel.app</text>` : ""}
   `
   );
 }
@@ -606,8 +595,7 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
 // embeds where you don't want the repo name repeated.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildMinimal(owner, repo, stack, theme, cfg, iconBase64Map) {
-  const W = 560,
-    H = 80;
+  const W = 560;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
   const PH = 24,
@@ -615,17 +603,18 @@ function buildMinimal(owner, repo, stack, theme, cfg, iconBase64Map) {
   const FS = 9,
     IW = 11,
     GAP = 6;
+  const PAD_V = 16,
+    ROW_GAP = 6;
 
-  const visible = stack.slice(0, 10);
-  const overflow = stack.length - visible.length;
-  const rows = layoutPills(visible, W, PH, FS, IW, GAP, 1, cfg.iconStyle);
+  // No cap — lay out every tech, as many rows as needed
+  const rows = layoutPills(stack, W, PH, FS, IW, GAP, Infinity, cfg.iconStyle);
 
   let pillsSVG = "";
-  if (rows[0]) {
-    const totalW = rows[0].reduce((a, p) => a + p.pw + GAP, -GAP);
+  rows.forEach((row, ri) => {
+    const totalW = row.reduce((a, p) => a + p.pw + GAP, -GAP);
     let x = (W - totalW) / 2;
-    const y = (H - PH) / 2;
-    rows[0].forEach((p) => {
+    const y = PAD_V + ri * (PH + ROW_GAP);
+    row.forEach((p) => {
       pillsSVG += renderPill(
         p,
         x,
@@ -640,17 +629,10 @@ function buildMinimal(owner, repo, stack, theme, cfg, iconBase64Map) {
       );
       x += p.pw + GAP;
     });
-    if (overflow > 0 && cfg.dataFields.overflowBadge) {
-      pillsSVG += overflowBadge(
-        overflow,
-        (W + totalW) / 2 + 10,
-        (H - PH) / 2,
-        PH,
-        PR,
-        theme
-      );
-    }
-  }
+  });
+
+  const gridH = rows.length > 0 ? rows.length * (PH + ROW_GAP) - ROW_GAP : PH;
+  const H = PAD_V + gridH + PAD_V;
 
   return buildWrapper(
     W,
@@ -677,8 +659,9 @@ function buildIcons(owner, repo, stack, theme, cfg, iconBase64Map) {
     GAP = 8;
   const ICW = 20; // icon size inside each cell
 
-  const visible = stack.slice(0, 48); // up to 4 rows of 12
-  const overflow = stack.length - visible.length;
+  // No cap — show all techs, grid grows as needed
+  const visible = stack;
+  const overflow = 0; // nothing hidden
   const rows = Math.ceil(visible.length / COLS);
 
   const W = COLS * (CELL + GAP) - GAP + PAD * 2;
@@ -770,8 +753,9 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
     GAP = 5,
     PAD = 12;
 
-  const visible = stack.slice(0, 30);
-  const overflow = stack.length - visible.length;
+  // No cap — show all techs; sidebar grows vertically
+  const visible = stack;
+  const overflow = 0;
   const headerH = cfg.dataFields.repoName ? 52 : PAD;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
@@ -884,8 +868,7 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
 // project showcases where prose context matters alongside the tech grid.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
-  const W = 680,
-    H = 220;
+  const W = 680;
   const DIVX = 220; // x position of the divider line
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
@@ -894,25 +877,46 @@ function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
   const FS = 9,
     IW = 11,
     GAP = 6;
+  const TOP_PAD = 20,
+    FOOTER_H = 24;
 
-  // ── Left panel: repo info + category summary ───────────────────────────
+  // ── Right panel rows first — H is driven by whichever panel is taller ──
+  const rightW = W - DIVX;
+  const rows = layoutPills(
+    stack,
+    rightW,
+    PH,
+    FS,
+    IW,
+    GAP,
+    Infinity,
+    cfg.iconStyle
+  );
+  const rightGridH = rows.length > 0 ? rows.length * (PH + GAP) - GAP : PH;
+  const rightContentH = TOP_PAD + rightGridH + FOOTER_H;
+
+  // ── Left panel: repo info + all category rows ───────────────────────────
   const groups = groupByCategory(stack);
-  let leftSVG = "";
+  const catListH = groups.length * 16;
+  const leftContentH = 98 + catListH + FOOTER_H;
 
+  // Card height = tallest panel
+  const H = Math.max(rightContentH, leftContentH, 120);
+
+  let leftSVG = "";
   if (cfg.dataFields.repoName) {
     leftSVG += `<text x="20" y="46" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="16" font-weight="700" letter-spacing="-0.2">
       <tspan fill="${theme.owner}">${esc(owner)}</tspan>
     </text>`;
     leftSVG += `<text x="20" y="64" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="16" font-weight="700" letter-spacing="-0.2" fill="${theme.title}">${esc(repo)}</text>`;
   }
-
   if (cfg.dataFields.signalCount) {
     leftSVG += `<text x="20" y="80" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="1.5">${stack.length} SIGNALS DETECTED</text>`;
   }
 
-  // Category dot list
+  // All category rows — no slice cap
   let catY = 98;
-  groups.slice(0, 6).forEach(([cat, items]) => {
+  groups.forEach(([cat, items]) => {
     const label = CATEGORY_META[cat]?.label ?? cat;
     const count = items.length;
     leftSVG += `<circle cx="24" cy="${catY - 3}" r="3" fill="${theme.accent}" opacity="0.7"/>`;
@@ -922,23 +926,15 @@ function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
   });
 
   if (cfg.dataFields.footerUrl) {
-    leftSVG += `<text x="20" y="${H - 12}" font-family="ui-monospace,monospace" font-size="7" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>`;
+    leftSVG += `<text x="20" y="${H - 8}" font-family="ui-monospace,monospace" font-size="7" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>`;
   }
-
-  // Divider
   leftSVG += `<line x1="${DIVX}" y1="20" x2="${DIVX}" y2="${H - 20}" stroke="${theme.border}" stroke-width="1"/>`;
 
-  // ── Right panel: pill grid ─────────────────────────────────────────────
-  const rightW = W - DIVX;
-  const visible = stack.slice(0, 20);
-  const overflow = stack.length - visible.length;
-  const rows = layoutPills(visible, rightW, PH, FS, IW, GAP, 4, cfg.iconStyle);
-
+  // ── Right panel ────────────────────────────────────────────────────────
   let rightSVG = "";
   rows.forEach((row, ri) => {
-    const rowTotalW = row.reduce((a, p) => a + p.pw + GAP, -GAP);
     let x = DIVX + 14;
-    const y = 28 + ri * (PH + GAP);
+    const y = TOP_PAD + ri * (PH + GAP);
     row.forEach((p) => {
       rightSVG += renderPill(
         p,
@@ -956,16 +952,8 @@ function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
     });
   });
 
-  if (overflow > 0 && cfg.dataFields.overflowBadge && rows.length > 0) {
-    const lr = rows[rows.length - 1];
-    const totalW = lr.reduce((a, p) => a + p.pw + GAP, -GAP);
-    const bx = DIVX + 14 + totalW + GAP + 2;
-    const by = 28 + (rows.length - 1) * (PH + GAP);
-    rightSVG += overflowBadge(overflow, bx, by, PH, PR, theme);
-  }
-
   if (cfg.dataFields.brandLabel) {
-    rightSVG += `<text x="${W - 20}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="7" fill="${theme.muted}">stackfingerprint.vercel.app</text>`;
+    rightSVG += `<text x="${W - 20}" y="${H - 8}" text-anchor="end" font-family="ui-monospace,monospace" font-size="7" fill="${theme.muted}">stackfingerprint.vercel.app</text>`;
   }
 
   return buildWrapper(
@@ -996,8 +984,9 @@ function buildCards(owner, repo, stack, theme, cfg, iconBase64Map) {
     PAD = 16;
   const ICW = 22;
 
-  const visible = stack.slice(0, 20);
-  const overflow = stack.length - visible.length;
+  // No cap — show all techs, grid expands
+  const visible = stack;
+  const overflow = 0;
   const rowCount = Math.ceil(visible.length / COLS);
 
   const W = COLS * (CW + HGAP) - HGAP + PAD * 2;
