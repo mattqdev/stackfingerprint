@@ -207,32 +207,112 @@ const PHP_DEP_SIGNALS = {
 
 // ── .stackfingerprint.json schema ─────────────────────────────────────────
 // {
-//   "ignore": ["babel", "webpack"],         // hide these signal IDs
-//   "pin": ["nextjs", "typescript"],        // always show these first
-//   "labels": { "nextjs": "Next.js 14" },  // override display labels
-//   "path": "apps/web"                      // sub-path to scan (monorepo)
+//   "ignore":  ["babel", "webpack"],         // hide these signal IDs
+//   "pin":     ["nextjs", "typescript"],     // always show these first
+//   "labels":  { "nextjs": "Next.js 14" },  // override display labels
+//   "path":    "apps/web",                   // sub-path to scan (monorepo)
+//   "card": {                                // default card presentation
+//     "repo":        "owner/repo",           // canonical repo (used as hint)
+//     "theme":       "ocean",
+//     "layout":      "classic",
+//     "size":        "md",
+//     "icons":       "color",                // legacy alias for iconStyle
+//     "pills":       "round",                // legacy alias for pillShape
+//     "iconStyle":   "color",
+//     "pillShape":   "round",
+//     "categoryFilter": "all",
+//     "accentLine":  "bar",
+//     "bgDecoration":"grid",
+//     "dataFields": { ... }
+//   }
 // }
-const SF_CONFIG_FILE = ".stackfingerprint.json";
+export const SF_CONFIG_FILE = ".stackfingerprint.json";
 
-function parseSFConfig(content) {
+export function parseSFConfig(content) {
   try {
     const parsed = JSON.parse(content);
     return {
       ignore: new Set(Array.isArray(parsed.ignore) ? parsed.ignore : []),
       pin: Array.isArray(parsed.pin) ? parsed.pin : [],
-      labels: typeof parsed.labels === "object" ? parsed.labels : {},
+      labels:
+        typeof parsed.labels === "object" && parsed.labels !== null
+          ? parsed.labels
+          : {},
       path: typeof parsed.path === "string" ? parsed.path : null,
+      // ── card preferences ───────────────────────────────────────────────
+      // Normalise both the new canonical keys and the legacy aliases
+      // (icons → iconStyle, pills → pillShape) so route.js only has to
+      // deal with one canonical shape.
+      card: parseSFCardConfig(parsed.card),
     };
   } catch {
-    return { ignore: new Set(), pin: [], labels: {}, path: null };
+    return { ignore: new Set(), pin: [], labels: {}, path: null, card: {} };
   }
+}
+
+// ── Normalise a raw card block from the config file ───────────────────────
+// Accepts both the canonical key names (iconStyle, pillShape) and the
+// legacy URL aliases (icons, pills) that are documented in the README.
+// Unknown keys are silently dropped so the output is always safe to spread
+// onto the route's cfg object.
+function parseSFCardConfig(raw) {
+  if (!raw || typeof raw !== "object") return {};
+
+  const card = {};
+
+  // Simple string fields — canonical names first, no transformation needed
+  const STRING_FIELDS = [
+    "theme",
+    "layout",
+    "size",
+    "categoryFilter",
+    "accentLine",
+    "bgDecoration",
+  ];
+  for (const key of STRING_FIELDS) {
+    if (typeof raw[key] === "string") card[key] = raw[key];
+  }
+
+  // iconStyle — accepts "iconStyle" (canonical) or "icons" (legacy alias)
+  if (typeof raw.iconStyle === "string") {
+    card.iconStyle = raw.iconStyle;
+  } else if (typeof raw.icons === "string") {
+    card.iconStyle = raw.icons;
+  }
+
+  // pillShape — accepts "pillShape" (canonical) or "pills" (legacy alias)
+  if (typeof raw.pillShape === "string") {
+    card.pillShape = raw.pillShape;
+  } else if (typeof raw.pills === "string") {
+    card.pillShape = raw.pills;
+  }
+
+  // dataFields — partial object, only override defined keys
+  if (raw.dataFields && typeof raw.dataFields === "object") {
+    card.dataFields = {};
+    const BOOL_FIELDS = [
+      "repoName",
+      "signalCount",
+      "footerUrl",
+      "brandLabel",
+      "categoryDots",
+      "overflowBadge",
+    ];
+    for (const k of BOOL_FIELDS) {
+      if (typeof raw.dataFields[k] === "boolean") {
+        card.dataFields[k] = raw.dataFields[k];
+      }
+    }
+    if (Object.keys(card.dataFields).length === 0) delete card.dataFields;
+  }
+
+  return card;
 }
 
 // ── Parse helpers ──────────────────────────────────────────────────────────
 function parsePkgJsonDeps(content) {
   try {
     const pkg = JSON.parse(content);
-    // Return separate sets so we can mark devDeps accurately
     const prod = new Set(Object.keys(pkg.dependencies ?? {}));
     const dev = new Set(Object.keys(pkg.devDependencies ?? {}));
     const peer = new Set(Object.keys(pkg.peerDependencies ?? {}));
@@ -281,7 +361,6 @@ function parseComposerDeps(content) {
 }
 
 // ── Resolve npm dep names to signal IDs ───────────────────────────────────
-// Returns Map<signalId, { isDevOnly: boolean }>
 function resolveNpmDeps(prodDeps, devDeps, peerDeps, signalsById) {
   const found = new Map();
 
@@ -292,13 +371,11 @@ function resolveNpmDeps(prodDeps, devDeps, peerDeps, signalsById) {
       if (lower === pattern || lower.startsWith(pattern + "/")) {
         if (signalsById.has(signalId)) {
           const alreadyDev = found.get(signalId)?.isDevOnly ?? true;
-          // A signal is dev-only if ALL occurrences are in devDeps
           found.set(signalId, { isDevOnly: alreadyDev && isDev });
         }
         break;
       }
     }
-    // TypeScript
     if (lower.startsWith("@types/") || lower === "typescript") {
       found.set("typescript", { isDevOnly: isDev });
     }
@@ -376,13 +453,16 @@ async function fallbackPaths(owner, repo, fetchFn, subPath) {
 }
 
 // ── Main export ────────────────────────────────────────────────────────────
+// Returns { stack, sfConfig } instead of just the stack array.
+// route.js uses sfConfig.card to populate cfg defaults before URL params
+// are applied on top — so the config file acts as a repo-level default layer.
+//
 // options.subPath — optional sub-directory to scan (monorepo support)
 //                   e.g. "apps/web" scans only that package
 export async function detectStack(owner, repo, fetchFn, options = {}) {
   const { subPath = "" } = options;
 
   const signalsById = new Map(SIGNALS.map((s) => [s.id, s]));
-  // detected: Map<signalId, { ...signal, isDevOnly: boolean }>
   const detected = new Map();
 
   // ── Step 1: Fetch the full file tree ──────────────────────────────────
@@ -392,7 +472,6 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
     const { tree, truncated } = await fetchTree(owner, repo);
     let paths = tree.map((entry) => entry.path);
 
-    // If a sub-path is requested, filter to only paths inside it
     if (subPath) {
       const prefix = subPath.replace(/\/$/, "") + "/";
       paths = paths.filter((p) => p === subPath || p.startsWith(prefix));
@@ -414,7 +493,6 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
   for (const fullPath of allPaths) {
     const bare = fullPath.includes("/") ? fullPath.split("/").pop() : fullPath;
 
-    // Full-path check — catches dir-name signals & path-sensitive patterns
     for (const sig of SIGNALS) {
       if (!detected.has(sig.id) && sig.check(fullPath)) {
         detected.set(sig.id, {
@@ -449,7 +527,7 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
   }
 
   // ── Step 3: Find dep files (prefer shallowest copy) ───────────────────
-  const depFileUrls = new Map(); // bare filename → { depth, url, fullPath }
+  const depFileUrls = new Map();
 
   for (const fullPath of allPaths) {
     const bare = fullPath.includes("/") ? fullPath.split("/").pop() : fullPath;
@@ -467,7 +545,16 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
   }
 
   // ── Step 4: Fetch and parse dep files ─────────────────────────────────
-  let sfConfig = { ignore: new Set(), pin: [], labels: {}, path: null };
+  // sfConfig is populated when the .stackfingerprint.json file is found.
+  // It is returned alongside the stack so route.js can apply the card
+  // defaults without a second network round-trip.
+  let sfConfig = {
+    ignore: new Set(),
+    pin: [],
+    labels: {},
+    path: null,
+    card: {},
+  };
 
   await Promise.allSettled(
     [...depFileUrls.entries()].map(async ([filename, { url }]) => {
@@ -477,7 +564,6 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
         const content = await res.text();
 
         if (filename === SF_CONFIG_FILE) {
-          // Parse project config first — affects all subsequent logic
           sfConfig = parseSFConfig(content);
           return;
         }
@@ -492,7 +578,6 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
                 isDevOnly: isDevOnly || INHERENTLY_DEV.has(id),
               });
             } else {
-              // Upgrade from dev-only to prod if now found in prod deps
               const existing = detected.get(id);
               if (existing.isDevOnly && !isDevOnly) {
                 detected.set(id, { ...existing, isDevOnly: false });
@@ -569,12 +654,10 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
   );
 
   // ── Step 5: Apply .stackfingerprint.json config ────────────────────────
-  // Remove ignored signals
   for (const id of sfConfig.ignore) {
     detected.delete(id);
   }
 
-  // Apply custom labels
   for (const [id, label] of Object.entries(sfConfig.labels)) {
     if (detected.has(id)) {
       detected.set(id, { ...detected.get(id), label });
@@ -599,5 +682,7 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
       (a, b) => (catOrder[a.category] ?? 99) - (catOrder[b.category] ?? 99)
     );
 
-  return [...pinned, ...rest];
+  // ── Return both the ordered stack and the parsed config ────────────────
+  // route.js destructures this to apply card defaults before URL params.
+  return { stack: [...pinned, ...rest], sfConfig };
 }

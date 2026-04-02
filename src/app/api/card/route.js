@@ -15,7 +15,7 @@ import {
 } from "../../../data/cardOptions";
 import { THEMES } from "../../../data/themes";
 
-export const revalidate = 0; // disable ISR — cache via headers only
+export const revalidate = 0;
 
 // ── Valid value sets (derived from cardOptions & themes) ────────────────────
 const VALID_LAYOUTS = new Set(LAYOUTS.map((l) => l.id));
@@ -27,39 +27,39 @@ const VALID_CATEGORY_FILTERS = new Set(CATEGORY_FILTERS.map((f) => f.id));
 const VALID_ACCENT_LINES = new Set(ACCENT_LINES.map((a) => a.id));
 const VALID_BG_DECORATIONS = new Set(BG_DECORATIONS.map((b) => b.id));
 
-// ── Helper: pick a value from params with validation ──────────────────────
+// ── Helper: pick a validated value from searchParams ─────────────────────
+// Tries each alias in `keys` in order. Returns the first value that passes
+// the validSet check (or any non-empty value if validSet is null).
+// Falls back to `fallback` if nothing matches.
 function pick(searchParams, keys, validSet, fallback) {
   for (const key of keys) {
     const val = searchParams.get(key);
     if (val !== null) {
-      // If no validation set provided, accept any non-empty value
       if (!validSet || validSet.has(val)) return val;
     }
   }
   return fallback;
 }
 
-// ── Icon colour resolution (must mirror svgBuilder.js exactly) ────────────
-// "mono"     → always white icon on accent-coloured tile
-// "icononly" → brand text color (same logic as "color")
-// "color"    → brand text color
-// "none"     → no icons fetched at all
+// ── Helper: merge dataFields from two sources ─────────────────────────────
+// Applies `overrides` (partial) on top of `base` (full defaults object).
+// Only keys present in `overrides` are changed.
+function mergeDataFields(base, overrides) {
+  if (!overrides || typeof overrides !== "object") return { ...base };
+  return { ...base, ...overrides };
+}
+
+// ── Icon colour resolution ─────────────────────────────────────────────────
 function resolveIconHex(tech, iconStyle) {
   if (iconStyle === "mono") return "ffffff";
-  // color and icononly both use the tech's own textColor
   return (tech.textColor ?? "#ffffff").replace("#", "").toLowerCase();
 }
 
 // ── Build icon map from simple-icons npm package ───────────────────────────
-// Uses the bundled SVG strings — zero network calls, works in any environment.
-// The CDN (cdn.simpleicons.org) blocks server-side fetches with 403.
 async function buildIconMap(stack, iconStyle) {
-  // "none" renders no icons at all — skip the whole bundle import
   if (iconStyle === "none") return {};
 
-  // Dynamic import so the large icons bundle is only loaded when needed
   const si = await import("simple-icons");
-
   const iconMap = {};
 
   for (const tech of stack) {
@@ -69,9 +69,6 @@ async function buildIconMap(stack, iconStyle) {
     const mapKey = `${tech.iconSlug}/${hex}`;
     if (iconMap[mapKey] !== undefined) continue;
 
-    // simple-icons exports as si<CapitalisedSlug>
-    // FIX: Handle slugs with dots/dashes by stripping them before capitalising
-    // e.g. "nextdotjs" → "siNextdotjs", "dotnet" → "siDotnet"
     const normalised = tech.iconSlug.replace(/[^a-zA-Z0-9]/g, "");
     const exportKey =
       "si" + normalised.charAt(0).toUpperCase() + normalised.slice(1);
@@ -106,8 +103,6 @@ const ERROR_MESSAGES = {
 };
 
 // ── GET handler ────────────────────────────────────────────────────────────
-// Param names match page.js cfgToParams() with legacy alias fallbacks.
-// All parameters are validated against their allowed value sets.
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
 
@@ -119,97 +114,174 @@ export async function GET(request) {
   }
   const [owner, repo] = parts;
 
-  // ── dataFields ─────────────────────────────────────────────────────────
-  // FIX: All DATA_FIELDS toggle parameters are now parsed and validated.
-  // Supports both df_<fieldId>=1/0 and standalone shorthand.
-  const dataFields = { ...DEFAULT_CONFIG.dataFields };
-  [
-    "repoName",
-    "signalCount",
-    "footerUrl",
-    "brandLabel",
-    "categoryDots",
-    "overflowBadge",
-  ].forEach((k) => {
-    const raw = searchParams.get(`df_${k}`);
-    if (raw !== null) {
-      // Accept "1"/"true"/"yes" as truthy, "0"/"false"/"no" as falsy
-      dataFields[k] = raw === "1" || raw === "true" || raw === "yes";
-    }
-  });
-
-  // ── subPath (monorepo support) ─────────────────────────────────────────
-  // ?path=apps/web restricts scanning to that directory within the repo.
-  // Sanitised: strip leading/trailing slashes, block traversal sequences.
+  // ── Sanitise subPath ───────────────────────────────────────────────────
+  // ?path= restricts scanning to a sub-directory (monorepo support).
+  // The .stackfingerprint.json `path` field is used as a fallback when
+  // this param is absent — that resolution happens after detect() returns.
   const rawPath = searchParams.get("path") ?? "";
-  const subPath = rawPath
-    .replace(/\.\./g, "") // no directory traversal
-    .replace(/^\/+|\/+$/g, "") // no leading/trailing slashes
+  const urlSubPath = rawPath
+    .replace(/\.\./g, "")
+    .replace(/^\/+|\/+$/g, "")
     .trim();
 
-  // ── cfg ────────────────────────────────────────────────────────────────
-  // FIX: All parameters are now validated against their valid value sets,
-  // preventing invalid values from reaching the SVG builder.
-  const cfg = {
-    ...DEFAULT_CONFIG,
-    // layout: validated against LAYOUTS
-    layout: pick(
-      searchParams,
-      ["layout"],
-      VALID_LAYOUTS,
-      DEFAULT_CONFIG.layout
-    ),
-    // size: validated against SIZES
-    size: pick(searchParams, ["size"], VALID_SIZES, DEFAULT_CONFIG.size),
-    // theme: validated against THEMES
-    theme: pick(searchParams, ["theme"], VALID_THEMES, DEFAULT_CONFIG.theme),
-    // iconStyle: validated against ICON_STYLES, with legacy alias "icons"
-    iconStyle: pick(
-      searchParams,
-      ["iconStyle", "icons"],
-      VALID_ICON_STYLES,
-      DEFAULT_CONFIG.iconStyle
-    ),
-    // pillShape: validated against PILL_SHAPES, with legacy alias "pills"
-    pillShape: pick(
-      searchParams,
-      ["pillShape", "pills"],
-      VALID_PILL_SHAPES,
-      DEFAULT_CONFIG.pillShape
-    ),
-    // categoryFilter: validated against CATEGORY_FILTERS, with legacy alias "cats"
-    categoryFilter: pick(
-      searchParams,
-      ["categoryFilter", "cats"],
-      VALID_CATEGORY_FILTERS,
-      DEFAULT_CONFIG.categoryFilter
-    ),
-    // accentLine: validated against ACCENT_LINES, with legacy alias "accent"
-    accentLine: pick(
-      searchParams,
-      ["accentLine", "accent"],
-      VALID_ACCENT_LINES,
-      DEFAULT_CONFIG.accentLine
-    ),
-    // bgDecoration: validated against BG_DECORATIONS, with legacy alias "bg"
-    bgDecoration: pick(
-      searchParams,
-      ["bgDecoration", "bg"],
-      VALID_BG_DECORATIONS,
-      DEFAULT_CONFIG.bgDecoration
-    ),
-    dataFields,
-  };
-
   try {
-    const stack = await detectStack(owner, repo, fetchContents, { subPath });
+    // ── 1. Detect stack ─────────────────────────────────────────────────
+    // detectStack now returns { stack, sfConfig } so we can read both the
+    // detected signals AND the repo's card preferences in one pass.
+    // We pass urlSubPath here; if it is empty we fall back to sfConfig.path
+    // after the call (see step 2).
+    const { stack, sfConfig } = await detectStack(owner, repo, fetchContents, {
+      subPath: urlSubPath,
+    });
 
-    // ?devOnly=0 hides dev-only signals (build tools, linters, CI) from the card.
-    // Default is to show everything so the card is maximally informative.
+    // ── 2. Resolve effective subPath ────────────────────────────────────
+    // If no ?path= was given in the URL, honour the `path` field from
+    // .stackfingerprint.json. If that is also absent, scan from root.
+    // NOTE: if urlSubPath was non-empty we already scanned the right
+    // directory; sfConfig.path is only used as a default when the URL
+    // param is absent.
+    //
+    // If sfConfig.path differs from what we already scanned we need a
+    // second scan.  This covers the case where:
+    //   - no ?path= in URL
+    //   - .stackfingerprint.json has "path": "apps/web"
+    //
+    // We re-detect lazily rather than running two scans upfront.
+    let finalStack = stack;
+    let finalSfConfig = sfConfig;
+
+    if (!urlSubPath && sfConfig.path) {
+      const configSubPath = sfConfig.path
+        .replace(/\.\./g, "")
+        .replace(/^\/+|\/+$/g, "")
+        .trim();
+
+      if (configSubPath) {
+        const result = await detectStack(owner, repo, fetchContents, {
+          subPath: configSubPath,
+        });
+        finalStack = result.stack;
+        finalSfConfig = result.sfConfig;
+      }
+    }
+
+    // ── 3. Build cfg — three-layer merge ────────────────────────────────
+    //
+    // Priority (highest → lowest):
+    //   A. URL query parameters          ← explicit user intent
+    //   B. .stackfingerprint.json card   ← repo-level defaults
+    //   C. DEFAULT_CONFIG                ← hardcoded fallback
+    //
+    // For each option we call pick() with:
+    //   - The searchParams keys to try (canonical + legacy aliases)
+    //   - The valid value set
+    //   - The config-file value as fallback (layer B)
+    //   - Which itself falls back to DEFAULT_CONFIG (layer C)
+    //
+    // This means a URL param always wins, but when absent the config file
+    // value is used — and when the config file has no opinion either, the
+    // hardcoded default kicks in.
+
+    const fileCard = finalSfConfig.card ?? {};
+
+    // dataFields: start from DEFAULT_CONFIG, apply config-file overrides,
+    // then apply per-field URL params on top.
+    const baseDataFields = mergeDataFields(
+      DEFAULT_CONFIG.dataFields,
+      fileCard.dataFields
+    );
+    const dataFields = { ...baseDataFields };
+
+    // df_<fieldId>=1/0 URL params override individual dataFields keys.
+    const DATA_FIELD_KEYS = [
+      "repoName",
+      "signalCount",
+      "footerUrl",
+      "brandLabel",
+      "categoryDots",
+      "overflowBadge",
+    ];
+    DATA_FIELD_KEYS.forEach((k) => {
+      const raw = searchParams.get(`df_${k}`);
+      if (raw !== null) {
+        dataFields[k] = raw === "1" || raw === "true" || raw === "yes";
+      }
+    });
+
+    const cfg = {
+      ...DEFAULT_CONFIG,
+
+      layout: pick(
+        searchParams,
+        ["layout"],
+        VALID_LAYOUTS,
+        fileCard.layout ?? DEFAULT_CONFIG.layout
+      ),
+      size: pick(
+        searchParams,
+        ["size"],
+        VALID_SIZES,
+        fileCard.size ?? DEFAULT_CONFIG.size
+      ),
+      theme: pick(
+        searchParams,
+        ["theme"],
+        VALID_THEMES,
+        fileCard.theme ?? DEFAULT_CONFIG.theme
+      ),
+
+      // iconStyle — canonical key "iconStyle", legacy alias "icons"
+      iconStyle: pick(
+        searchParams,
+        ["iconStyle", "icons"],
+        VALID_ICON_STYLES,
+        fileCard.iconStyle ?? DEFAULT_CONFIG.iconStyle
+      ),
+
+      // pillShape — canonical key "pillShape", legacy alias "pills"
+      pillShape: pick(
+        searchParams,
+        ["pillShape", "pills"],
+        VALID_PILL_SHAPES,
+        fileCard.pillShape ?? DEFAULT_CONFIG.pillShape
+      ),
+
+      // categoryFilter — canonical key "categoryFilter", legacy alias "cats"
+      categoryFilter: pick(
+        searchParams,
+        ["categoryFilter", "cats"],
+        VALID_CATEGORY_FILTERS,
+        fileCard.categoryFilter ?? DEFAULT_CONFIG.categoryFilter
+      ),
+
+      // accentLine — canonical key "accentLine", legacy alias "accent"
+      accentLine: pick(
+        searchParams,
+        ["accentLine", "accent"],
+        VALID_ACCENT_LINES,
+        fileCard.accentLine ?? DEFAULT_CONFIG.accentLine
+      ),
+
+      // bgDecoration — canonical key "bgDecoration", legacy alias "bg"
+      bgDecoration: pick(
+        searchParams,
+        ["bgDecoration", "bg"],
+        VALID_BG_DECORATIONS,
+        fileCard.bgDecoration ?? DEFAULT_CONFIG.bgDecoration
+      ),
+
+      dataFields,
+    };
+
+    // ── 4. Apply ?devOnly=0 shorthand ───────────────────────────────────
+    // Hides dev-only signals without changing categoryFilter.
+    // Equivalent to categoryFilter=prodonly but operates at the stack level
+    // rather than the render level, so it composes with any categoryFilter.
     const showDevOnly = pick(searchParams, ["devOnly"], null, "1");
     const filteredByDev =
-      showDevOnly === "0" ? stack.filter((t) => !t.isDevOnly) : stack;
+      showDevOnly === "0" ? finalStack.filter((t) => !t.isDevOnly) : finalStack;
 
+    // ── 5. Build icon map & render SVG ──────────────────────────────────
     const iconBase64Map = await buildIconMap(filteredByDev, cfg.iconStyle);
     const svg = buildSVG(owner, repo, filteredByDev, cfg, iconBase64Map);
 
@@ -219,8 +291,9 @@ export async function GET(request) {
         "Content-Type": "image/svg+xml",
         "Cache-Control": "public, max-age=300, stale-while-revalidate=600",
         "Access-Control-Allow-Origin": "*",
-        // Expose whether the instance is authenticated — useful for debugging
         "X-Auth": process.env.GITHUB_TOKEN ? "token" : "none",
+        // Expose whether a config file was found — useful for debugging
+        "X-SF-Config": Object.keys(fileCard).length > 0 ? "applied" : "none",
       },
     });
   } catch (e) {
