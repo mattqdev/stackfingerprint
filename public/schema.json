@@ -1,27 +1,301 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "StackFingerprint Configuration",
+  "$id": "https://stackfingerprint.vercel.app/schema/.stackfingerprint.json",
+  "title": "Stack Fingerprint Configuration",
+  "description": "Project-level configuration file for Stack Fingerprint (https://stackfingerprint.vercel.app). Drop this file at your repository root — or at a monorepo sub-path — to control signal detection and card presentation without touching any API parameters. Read by detect.js before the card is rendered; takes effect for every card URL that points at this repo.",
   "type": "object",
+  "additionalProperties": false,
+
   "properties": {
+
     "ignore": {
+      "title": "Ignored signals",
+      "description": "Signal IDs to suppress from the card, even if they are detected automatically. Applied before any categoryFilter. Use this to eliminate persistent false positives — e.g. build tools that are pulled in transitively but are not part of your intentional stack.",
       "type": "array",
-      "description": "List of signal IDs to exclude from the card.",
-      "items": { "type": "string" }
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/signalId"
+      },
+      "examples": [
+        ["babel", "webpack", "terraform"],
+        ["rspec", "circleci"]
+      ]
     },
+
     "pin": {
+      "title": "Pinned signals",
+      "description": "Signal IDs to always include at the start of the card, in the order listed, regardless of whether they are auto-detected. Pinned signals are shown before all other signals and are never hidden by categoryFilter. Use this to surface technologies whose config files are not yet in the detection database, or to guarantee a signal always appears even in 'top' mode.",
       "type": "array",
-      "description": "List of signal IDs to prioritize at the start of the card.",
-      "items": { "type": "string" }
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/signalId"
+      },
+      "examples": [
+        ["nextjs", "typescript"],
+        ["postgres", "redis"]
+      ]
     },
+
     "labels": {
+      "title": "Custom display labels",
+      "description": "Override the display label shown on the pill for any signal ID. Keys are signal IDs (see 'ignore' / 'pin' for the format); values are the replacement label string. Useful for specifying version numbers, preferred brand capitalisation, or internal aliases. Labels do not affect detection or sorting — only the rendered pill text.",
       "type": "object",
-      "description": "Custom display names for specific signals.",
-      "additionalProperties": { "type": "string" }
+      "additionalProperties": false,
+      "propertyNames": {
+        "$ref": "#/definitions/signalId"
+      },
+      "patternProperties": {
+        "^[a-z0-9][a-z0-9-]*[a-z0-9]$": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Replacement display label. Keep it short — long labels overflow narrow pill shapes."
+        }
+      },
+      "examples": [
+        {
+          "nextjs": "Next.js 15",
+          "typescript": "TypeScript 5",
+          "react": "React 19"
+        }
+      ]
     },
+
     "path": {
+      "title": "Default scan sub-path (monorepo)",
+      "description": "The sub-directory to scan instead of the repository root. Accepts a relative path from the repo root, with no leading or trailing slash. When set, detect.js will restrict the file-tree scan to this directory and its children only — signals from sibling packages in the monorepo are ignored. The ?path= query parameter takes precedence over this field when both are present.",
       "type": ["string", "null"],
-      "description": "The specific sub-directory to scan for monorepos."
+      "pattern": "^(?!/)(?!.*/$)(?!.*\\.\\.)(?!.*//)[^\\\\\"'<>|?*]+$",
+      "minLength": 1,
+      "maxLength": 200,
+      "examples": [
+        "apps/web",
+        "packages/api",
+        "frontend",
+        "services/gateway"
+      ]
+    },
+
+    "card": {
+      "title": "Default card presentation",
+      "description": "Default visual preferences for this repository's card. Every field here is overridden by the equivalent query parameter when passed explicitly in the URL. Useful for committing a canonical card style into the repo so that the GitHub Action workflow_dispatch inputs can be left at their defaults.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+
+        "theme": {
+          "title": "Card colour theme",
+          "description": "The named colour palette applied to the card background, border, text, and pill chrome. Does not affect signal detection.",
+          "type": "string",
+          "enum": [
+            "midnight",
+            "arctic",
+            "forest",
+            "ember",
+            "ocean",
+            "obsidian",
+            "sakura",
+            "golden",
+            "rose",
+            "nord",
+            "nebula",
+            "parchment",
+            "matrix",
+            "lavender",
+            "sunset",
+            "dracula",
+            "cyber",
+            "monokai",
+            "slate",
+            "abyss"
+          ],
+          "default": "midnight",
+          "examples": ["ocean", "obsidian", "sakura", "dracula"]
+        },
+
+        "layout": {
+          "title": "Card layout",
+          "description": "Structural template that controls how pills are arranged inside the card. Each layout has a fixed base width; height adapts to content. 'classic' is the general-purpose default. 'minimal' omits all header chrome. 'terminal' renders a monospace CLI readout instead of pills. 'sidebar' produces a narrow vertical strip. 'split' shows a category summary on the left and pills on the right. 'cards' gives each technology its own named tile. 'icons' renders icon-only squares at maximum density.",
+          "type": "string",
+          "enum": [
+            "classic",
+            "compact",
+            "banner",
+            "tall",
+            "terminal",
+            "minimal",
+            "icons",
+            "sidebar",
+            "split",
+            "cards"
+          ],
+          "default": "classic",
+          "examples": ["classic", "compact", "terminal", "sidebar"]
+        },
+
+        "size": {
+          "title": "Card size",
+          "description": "Uniform scale multiplier applied to the card's base dimensions: sm = 0.75×, md = 1.0× (default), lg = 1.35×, xl = 1.6×.",
+          "type": "string",
+          "enum": ["sm", "md", "lg", "xl"],
+          "default": "md"
+        },
+
+        "iconStyle": {
+          "title": "Icon rendering style",
+          "description": "Controls how brand icons are rendered inside each pill. 'color' uses the technology's official brand colour. 'mono' tints every icon with the card's accent colour. 'none' hides icons and shows text labels only. 'icononly' renders square icon tiles with no text label — best combined with the 'icons' layout.",
+          "type": "string",
+          "enum": ["color", "mono", "none", "icononly"],
+          "default": "color"
+        },
+
+        "pillShape": {
+          "title": "Pill corner radius",
+          "description": "Controls the border-radius of pill chips. 'pill' is fully rounded (stadium shape). 'round' is slightly rounded. 'square' uses minimal rounding.",
+          "type": "string",
+          "enum": ["pill", "round", "square"],
+          "default": "round"
+        },
+
+        "categoryFilter": {
+          "title": "Category filter",
+          "description": "Controls which detected signals are included in the rendered card. 'all' shows every signal (dev-only pills are dimmed to 55% opacity). 'prodonly' hides all signals sourced exclusively from devDependencies or the INHERENTLY_DEV set. 'top' shows only lang + framework categories, capped at 5 signals — the minimal meaningful badge. 'core' shows lang, framework, and runtime. 'devtools' shows build tooling, package managers, testing, and linting. 'infra' shows CI/CD, infrastructure, and databases.",
+          "type": "string",
+          "enum": ["all", "top", "core", "devtools", "infra", "prodonly"],
+          "default": "all"
+        },
+
+        "accentLine": {
+          "title": "Accent line style",
+          "description": "Decorative element rendered near the top of the card. 'bar' is a thin solid horizontal bar. 'gradient' fades the bar from left to right. 'dots' renders a short series of diminishing circles. 'none' removes the element entirely (always applied for the 'terminal' layout).",
+          "type": "string",
+          "enum": ["bar", "gradient", "dots", "none"],
+          "default": "bar"
+        },
+
+        "bgDecoration": {
+          "title": "Background decoration",
+          "description": "Subtle texture or pattern overlaid on the card background gradient. 'none' renders a clean solid gradient. 'grid' adds a fine grid of lines. 'dots' adds a dot-matrix pattern. 'noise' adds a grain texture via SVG feTurbulence. 'circuit' adds faint vertical circuit-trace lines with solder-point dots.",
+          "type": "string",
+          "enum": ["none", "grid", "dots", "noise", "circuit"],
+          "default": "grid"
+        },
+
+        "dataFields": {
+          "title": "Visible data fields",
+          "description": "Toggles for the metadata elements rendered on the card chrome. Fields default to the values shown below when not specified. All fields are ignored in the 'minimal' layout which renders pills only.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repoName": {
+              "title": "Repository name",
+              "description": "Show the 'owner/repo' heading at the top of the card.",
+              "type": "boolean",
+              "default": true
+            },
+            "signalCount": {
+              "title": "Signal count",
+              "description": "Show the 'N SIGNALS DETECTED' sub-heading below the repo name.",
+              "type": "boolean",
+              "default": true
+            },
+            "footerUrl": {
+              "title": "Footer repository URL",
+              "description": "Show 'github.com/owner/repo' in the card footer.",
+              "type": "boolean",
+              "default": true
+            },
+            "brandLabel": {
+              "title": "Brand label",
+              "description": "Show 'stackfingerprint.vercel.app' in the card footer.",
+              "type": "boolean",
+              "default": true
+            },
+            "categoryDots": {
+              "title": "Category dots",
+              "description": "Show small category-colour indicator dots on each pill (experimental).",
+              "type": "boolean",
+              "default": false
+            },
+            "overflowBadge": {
+              "title": "Overflow badge",
+              "description": "Show a '+N' badge when detected signals exceed the layout's pill capacity.",
+              "type": "boolean",
+              "default": true
+            }
+          }
+        }
+      }
     }
   },
-  "additionalProperties": false
+
+  "definitions": {
+    "signalId": {
+      "title": "Signal ID",
+      "description": "A valid Stack Fingerprint signal identifier — lowercase letters, digits, and hyphens only. Must start and end with a letter or digit. Examples: 'nextjs', 'vitest', 'github-actions', 'dotnet-mvc'.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$",
+      "minLength": 1,
+      "maxLength": 64,
+      "examples": [
+        "nextjs", "typescript", "vitest", "eslint",
+        "github-actions", "tailwind", "prisma", "dotnet-mvc",
+        "react", "python", "docker", "playwright"
+      ]
+    }
+  },
+
+  "examples": [
+    {
+      "$comment": "Minimal — suppress two false-positive signals",
+      "ignore": ["babel", "terraform"]
+    },
+    {
+      "$comment": "Standard — clean up false positives, pin core tech, version labels",
+      "ignore": ["rspec", "circleci", "babel"],
+      "pin": ["nextjs", "typescript"],
+      "labels": {
+        "nextjs": "Next.js 15",
+        "typescript": "TypeScript 5",
+        "react": "React 19"
+      }
+    },
+    {
+      "$comment": "Monorepo — restrict scan to apps/web sub-package",
+      "path": "apps/web",
+      "ignore": ["lerna", "turbo"],
+      "pin": ["nextjs", "typescript"],
+      "labels": {
+        "nextjs": "Next.js 15"
+      }
+    },
+    {
+      "$comment": "Full — all fields specified, canonical card style committed to repo",
+      "ignore": ["babel", "webpack", "terraform", "rspec"],
+      "pin": ["nextjs", "typescript"],
+      "labels": {
+        "nextjs": "Next.js 15",
+        "typescript": "TypeScript 5"
+      },
+      "path": "apps/web",
+      "card": {
+        "theme": "ocean",
+        "layout": "classic",
+        "size": "md",
+        "iconStyle": "color",
+        "pillShape": "round",
+        "categoryFilter": "prodonly",
+        "accentLine": "bar",
+        "bgDecoration": "grid",
+        "dataFields": {
+          "repoName": true,
+          "signalCount": true,
+          "footerUrl": true,
+          "brandLabel": true,
+          "categoryDots": false,
+          "overflowBadge": true
+        }
+      }
+    }
+  ]
 }

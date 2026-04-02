@@ -78,17 +78,19 @@ Returns a self-contained SVG card for the requested repository.
 
 #### Query parameters
 
-| Parameter        | Required | Type                           | Default   | Description                                               |
-| ---------------- | -------- | ------------------------------ | --------- | --------------------------------------------------------- |
-| `repo`           | ✅       | `owner/repo`                   | —         | GitHub repository to scan                                 |
-| `theme`          |          | `string`                       | `ocean`   | Card colour theme                                         |
-| `layout`         |          | `string`                       | `classic` | Card layout template                                      |
-| `size`           |          | `sm` \| `md` \| `lg`           | `md`      | Card size                                                 |
-| `iconStyle`      |          | `color` \| `mono` \| `outline` | `color`   | Icon rendering style                                      |
-| `pillShape`      |          | `round` \| `square`            | `round`   | Pill corner radius                                        |
-| `categoryFilter` |          | `all` \| `prodonly` \| `top`   | `all`     | Signal filter                                             |
-| `path`           |          | `string`                       | _(root)_  | Sub-path to scan within the repository                    |
-| `devOnly`        |          | `0` \| `1`                     | `1`       | `0` hides all dev-only signals (equivalent to `prodonly`) |
+| Parameter        | Required | Type                                             | Default    | Description                                                              |
+| ---------------- | -------- | ------------------------------------------------ | ---------- | ------------------------------------------------------------------------ |
+| `repo`           | ✅       | `owner/repo`                                     | —          | GitHub repository to scan                                                |
+| `theme`          |          | `string`                                         | `midnight` | Card colour theme — see [Themes](#themes)                                |
+| `layout`         |          | `string`                                         | `classic`  | Card layout — see [Layouts](#layouts)                                    |
+| `size`           |          | `sm` `md` `lg` `xl`                              | `md`       | Scale multiplier: 0.75× / 1.0× / 1.35× / 1.6×                            |
+| `iconStyle`      |          | `color` `mono` `none` `icononly`                 | `color`    | Icon rendering style                                                     |
+| `pillShape`      |          | `pill` `round` `square`                          | `round`    | Pill corner radius                                                       |
+| `categoryFilter` |          | `all` `prodonly` `top` `core` `devtools` `infra` | `all`      | Signal filter — see [Signal categories](#signal-categories)              |
+| `accentLine`     |          | `bar` `gradient` `dots` `none`                   | `bar`      | Decorative line near the card top                                        |
+| `bgDecoration`   |          | `none` `grid` `dots` `noise` `circuit`           | `grid`     | Background texture                                                       |
+| `path`           |          | `string`                                         | _(root)_   | Sub-path to scan (monorepo)                                              |
+| `devOnly`        |          | `0` `1`                                          | `1`        | `0` hides all dev-only signals — shorthand for `categoryFilter=prodonly` |
 
 #### Example requests
 
@@ -125,33 +127,103 @@ A fully self-contained SVG. Brand icons are inlined as base64, making the card r
 
 ## Configuration file — `.stackfingerprint.json`
 
-Drop this file at the root of your repository (or at the sub-path you are scanning) to control detection behaviour without changing any URL parameter. The API reads this file before rendering the card.
+Drop this file at the root of your repository (or at the sub-path you are scanning) to control signal detection and card presentation without changing any URL parameter. The API reads this file before rendering; every field can be overridden at runtime via an equivalent query parameter.
 
-### Schema
+> A machine-readable JSON Schema is available at [`.stackfingerprint.schema.json`](./.stackfingerprint.schema.json). Add `"$schema": "https://stackfingerprint.vercel.app/schema/.stackfingerprint.json"` to your config file to get IDE autocompletion in VS Code, WebStorm, and other editors that support JSON Schema.
+
+### Full reference
 
 ```json
 {
+  "$schema": "https://stackfingerprint.vercel.app/schema/.stackfingerprint.json",
+
   "ignore": ["babel", "webpack", "terraform"],
   "pin": ["nextjs", "typescript"],
-  "labels": { "nextjs": "Next.js 14" },
-  "path": "apps/web"
+  "labels": { "nextjs": "Next.js 15", "react": "React 19" },
+  "path": "apps/web",
+
+  "card": {
+    "theme": "ocean",
+    "layout": "classic",
+    "size": "md",
+    "iconStyle": "color",
+    "pillShape": "round",
+    "categoryFilter": "prodonly",
+    "accentLine": "bar",
+    "bgDecoration": "grid",
+    "dataFields": {
+      "repoName": true,
+      "signalCount": true,
+      "footerUrl": true,
+      "brandLabel": true,
+      "categoryDots": false,
+      "overflowBadge": true
+    }
+  }
 }
 ```
 
-### Fields
+### Top-level fields
 
-| Field    | Type                       | Description                                                                                         |
-| -------- | -------------------------- | --------------------------------------------------------------------------------------------------- |
-| `ignore` | `string[]`                 | Signal IDs to suppress. Useful for eliminating persistent false positives.                          |
-| `pin`    | `string[]`                 | Signal IDs to always include, even if not auto-detected.                                            |
-| `labels` | `{ [id: string]: string }` | Override the display label for any signal. Useful for specifying versions.                          |
-| `path`   | `string`                   | Default sub-directory to scan. Overridden by the `?path=` query parameter when provided explicitly. |
+| Field    | Type               | Default   | Description                                                                                                             |
+| -------- | ------------------ | --------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `ignore` | `string[]`         | `[]`      | Signal IDs to suppress, even if auto-detected. Applied before any `categoryFilter`. Use for persistent false positives. |
+| `pin`    | `string[]`         | `[]`      | Signal IDs to always show, in the order listed, before all other signals. Never hidden by `categoryFilter`.             |
+| `labels` | `{ [id]: string }` | `{}`      | Override the pill display label for any signal ID. Does not affect detection or sorting. Max 40 characters per label.   |
+| `path`   | `string \| null`   | `null`    | Default sub-directory to scan for monorepos. Overridden by the `?path=` query parameter.                                |
+| `card`   | `object`           | see below | Default visual preferences. Every sub-field is overridden by the equivalent URL query parameter.                        |
 
-### Precedence
+### `card` fields
 
-`?path=` URL param > `path` in `.stackfingerprint.json` > repository root.
+| Field            | Type     | Default    | Values                                           | Description                                        |
+| ---------------- | -------- | ---------- | ------------------------------------------------ | -------------------------------------------------- |
+| `theme`          | `string` | `midnight` | See [Themes](#themes)                            | Colour palette for the card                        |
+| `layout`         | `string` | `classic`  | See [Layouts](#layouts)                          | Structural template for pill arrangement           |
+| `size`           | `string` | `md`       | `sm` `md` `lg` `xl`                              | Scale multiplier: 0.75× / 1.0× / 1.35× / 1.6×      |
+| `iconStyle`      | `string` | `color`    | `color` `mono` `none` `icononly`                 | How brand icons are rendered inside pills          |
+| `pillShape`      | `string` | `round`    | `pill` `round` `square`                          | Corner radius of pill chips                        |
+| `categoryFilter` | `string` | `all`      | `all` `prodonly` `top` `core` `devtools` `infra` | Which signal categories to render                  |
+| `accentLine`     | `string` | `bar`      | `bar` `gradient` `dots` `none`                   | Decorative line near the top of the card           |
+| `bgDecoration`   | `string` | `grid`     | `none` `grid` `dots` `noise` `circuit`           | Subtle texture overlaid on the background gradient |
+| `dataFields`     | `object` | —          | see below                                        | Toggles for metadata elements in the card chrome   |
 
-`pin` IDs always appear, regardless of `categoryFilter`. `ignore` IDs are removed before filtering.
+### `card.dataFields` toggles
+
+| Field           | Default | Description                                                               |
+| --------------- | ------- | ------------------------------------------------------------------------- |
+| `repoName`      | `true`  | Show the `owner/repo` heading                                             |
+| `signalCount`   | `true`  | Show the "N SIGNALS DETECTED" sub-heading                                 |
+| `footerUrl`     | `true`  | Show `github.com/owner/repo` in the footer                                |
+| `brandLabel`    | `true`  | Show `stackfingerprint.vercel.app` in the footer                          |
+| `categoryDots`  | `false` | Show category-colour indicator dots on each pill _(experimental)_         |
+| `overflowBadge` | `true`  | Show a `+N` badge when detected signals exceed the layout's pill capacity |
+
+### `categoryFilter` values
+
+| Value      | What is shown                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------------- |
+| `all`      | Every detected signal; dev-only pills dimmed to 55 % opacity                                          |
+| `prodonly` | Signals sourced from `dependencies`, config files, or directories only — no `devDependencies` signals |
+| `top`      | `lang` + `framework` categories only, capped at 5 signals                                             |
+| `core`     | `lang` + `framework` + `runtime` categories                                                           |
+| `devtools` | `build` + `pkgmgr` + `testing` + `lint` categories                                                    |
+| `infra`    | `cicd` + `infra` + `db` categories                                                                    |
+
+### `iconStyle` values
+
+| Value      | Description                                                               |
+| ---------- | ------------------------------------------------------------------------- |
+| `color`    | Brand colours from the Simple Icons palette (default)                     |
+| `mono`     | All icons tinted with the card's accent colour                            |
+| `none`     | No icons — text labels only                                               |
+| `icononly` | Square icon tiles with no text label; best paired with the `icons` layout |
+
+### Precedence rules
+
+- `?path=` URL param > `path` in config file > repository root
+- `pin` IDs always appear, regardless of `categoryFilter`
+- `ignore` IDs are removed first, before `pin` and `categoryFilter` are applied
+- Every `card.*` field is overridden by its equivalent URL query parameter when explicitly provided
 
 ### Example — eliminating false positives in a large repo
 
@@ -169,18 +241,30 @@ Drop this file at the root of your repository (or at the sub-path you are scanni
 
 ## Themes
 
-| Theme ID   | Description                            |
-| ---------- | -------------------------------------- |
-| `ocean`    | Cool blues and cyans — the default     |
-| `obsidian` | Dark charcoal with purple accents      |
-| `sakura`   | Soft pinks and rose tones              |
-| `forest`   | Muted greens on a dark background      |
-| `sunset`   | Warm oranges and reds                  |
-| `midnight` | Deep navy with silver highlights       |
-| `aurora`   | Teal-to-purple gradient                |
-| `mono`     | Greyscale — no colour                  |
-| `paper`    | Light cream background, ink-style text |
-| `neon`     | High-contrast neon on black            |
+20 themes are available. The `card.theme` config key and the `?theme=` query parameter accept any of the IDs in the first column.
+
+| Theme ID    | Emoji | Style | Character                                        |
+| ----------- | ----- | ----- | ------------------------------------------------ |
+| `midnight`  | 🌑    | Dark  | Deep blue-black with indigo accent — the default |
+| `arctic`    | 🧊    | Light | Cool indigo-white with periwinkle border         |
+| `forest`    | 🌲    | Dark  | Near-black green with bright green accent        |
+| `ember`     | 🔥    | Dark  | Near-black brown with orange accent              |
+| `ocean`     | 🌊    | Dark  | Deep navy with electric cyan                     |
+| `obsidian`  | 🪨    | Dark  | Pure dark charcoal with silver/grey              |
+| `sakura`    | 🌸    | Dark  | Dark plum-rose with pink accent                  |
+| `golden`    | ✨    | Dark  | Dark brown with gold/amber accent                |
+| `rose`      | 🌹    | Light | Pale rose-white with crimson accent              |
+| `nord`      | ❄️    | Dark  | Arctic blue-grey with teal accent                |
+| `nebula`    | 🔭    | Dark  | Near-black purple with violet accent             |
+| `parchment` | 📜    | Light | Warm cream with brown leather tones              |
+| `matrix`    | 👾    | Dark  | Pure black with neon green — hacker terminal     |
+| `lavender`  | 💜    | Light | Soft lavender white with purple accent           |
+| `sunset`    | 🌅    | Dark  | Near-black with coral/rose accent                |
+| `dracula`   | 🧛    | Dark  | Classic Dracula dark grey with purple            |
+| `cyber`     | ⚡    | Dark  | Deep dark blue with electric yellow              |
+| `monokai`   | 🎨    | Dark  | Warm dark grey with lime green accent            |
+| `slate`     | 🩶    | Light | Cool blue-grey white with dark slate             |
+| `abyss`     | 🌀    | Dark  | Very deep teal-black with aqua accent            |
 
 Themes can be previewed in the [Visual Builder](https://stackfingerprint.vercel.app).
 
@@ -188,32 +272,45 @@ Themes can be previewed in the [Visual Builder](https://stackfingerprint.vercel.
 
 ## Layouts
 
-| Layout ID  | Description                            | Best for          |
-| ---------- | -------------------------------------- | ----------------- |
-| `classic`  | Grid of pills with title and repo name | General READMEs   |
-| `compact`  | Tighter pill grid, smaller padding     | Sidebar badges    |
-| `minimal`  | Pills only, no header or metadata      | Inline embeds     |
-| `terminal` | Monospace terminal prompt style        | Dev tool projects |
-| `banner`   | Wide horizontal strip of pills         | Project headers   |
+10 layouts are available. Base width is fixed per layout; height adapts to content.
+
+| Layout ID  | Base width | Description                                                                | Best for                                      |
+| ---------- | ---------- | -------------------------------------------------------------------------- | --------------------------------------------- |
+| `classic`  | 600 px     | Header + centred pill rows. Default.                                       | General READMEs                               |
+| `compact`  | 500 px     | Smaller padding and font, minimal height                                   | Inline badges, small embeds                   |
+| `banner`   | 760 px     | Wide landscape, generous pill spacing                                      | Project pages, social previews                |
+| `tall`     | 380 px     | Portrait, pills grouped by category with section labels                    | Detailed stack showcase                       |
+| `terminal` | 600 px     | Monospace CLI-style text readout — no pill icons                           | Dev tool / CLI projects                       |
+| `minimal`  | 560 px     | Pills only, zero chrome (no header, no footer)                             | Embeds where the repo name is already visible |
+| `icons`    | dynamic    | Icon-only squares in a 12-column grid, no text labels                      | Dense visual glance at a large stack          |
+| `sidebar`  | 160 px     | Narrow vertical strip, one pill per row (or 3-col icon grid)               | README sidebar, wiki margin                   |
+| `split`    | 680 px     | Left panel: repo info + category summary · Right panel: pill grid          | Portfolio pages, project showcases            |
+| `cards`    | dynamic    | Each technology gets its own named tile with icon + label + category badge | Detailed showcase with 6–20 technologies      |
 
 ---
 
 ## Signal categories
 
-Categories group signals logically and drive the `top` filter.
+Categories group signals logically. The `categoryFilter` parameter controls which categories are rendered.
 
-| Category    | Examples                                 | Included in `top` filter |
-| ----------- | ---------------------------------------- | ------------------------ |
-| `lang`      | TypeScript, JavaScript, Python, Rust, Go | ✅                       |
-| `framework` | Next.js, Django, Rails, FastAPI, Remix   | ✅                       |
-| `runtime`   | Node.js, Deno, Bun                       |                          |
-| `bundler`   | Vite, webpack, Rollup, esbuild, Parcel   |                          |
-| `test`      | Vitest, Jest, Pytest, RSpec              |                          |
-| `lint`      | ESLint, Prettier, Stylelint              |                          |
-| `ci`        | GitHub Actions, CircleCI, GitLab CI      |                          |
-| `infra`     | Docker, Terraform, Kubernetes            |                          |
-| `db`        | PostgreSQL, Redis, PlanetScale           |                          |
-| `ui`        | Tailwind CSS, Radix, shadcn/ui           |                          |
+| Category ID  | Label       | Order | `top` | `core` | `devtools` | `infra` | Example signals                           |
+| ------------ | ----------- | ----- | ----- | ------ | ---------- | ------- | ----------------------------------------- |
+| `lang`       | Language    | 0     | ✅    | ✅     |            |         | TypeScript, JavaScript, Python, Rust, Go  |
+| `framework`  | Framework   | 1     | ✅    | ✅     |            |         | Next.js, Django, Rails, FastAPI, Remix    |
+| `ui`         | UI          | 2     |       | ✅     |            |         | Tailwind CSS, shadcn/ui, Radix UI, Sass   |
+| `runtime`    | Runtime     | 3     |       | ✅     |            |         | Node.js, Deno, Bun, Docker, Kubernetes    |
+| `build`      | Build Tool  | 4     |       |        | ✅         |         | Vite, webpack, Rollup, esbuild, Turbo     |
+| `pkgmgr`     | Package Mgr | 5     |       |        | ✅         |         | npm, yarn, pnpm, bun, pip, poetry         |
+| `db`         | Database    | 6     |       |        |            | ✅      | Prisma, Drizzle, Supabase, Redis, SQLite  |
+| `auth`       | Auth        | 7     |       |        |            |         | NextAuth, Clerk, Auth0, Lucia             |
+| `state`      | State       | 8     |       |        |            |         | Redux, Zustand, Jotai, MobX, XState       |
+| `testing`    | Testing     | 9     |       |        | ✅         |         | Vitest, Jest, Playwright, Cypress, pytest |
+| `cicd`       | CI/CD       | 10    |       |        |            | ✅      | GitHub Actions, CircleCI, Jenkins, Drone  |
+| `infra`      | Infra       | 11    |       |        |            | ✅      | Vercel, Terraform, AWS CDK, Helm, Ansible |
+| `monitoring` | Monitoring  | 12    |       |        |            |         | Sentry, Datadog, Grafana, OpenTelemetry   |
+| `mobile`     | Mobile      | 13    |       |        |            |         | React Native, Flutter, Ionic              |
+| `ai`         | AI / ML     | 14    |       |        |            |         | LangChain, OpenAI SDK, PyTorch, Jupyter   |
+| `lint`       | Linting     | 15    |       |        | ✅         |         | ESLint, Prettier, Biome, Ruff, RuboCop    |
 
 ---
 
@@ -295,7 +392,68 @@ The Action fetches the SVG at CI time on GitHub's own infrastructure, validates 
 
 ### Full workflow file
 
-check the workflow file here: [Workflow](https://github.com/mattqdev/stackfingerprint/blob/main/.github/workflows/stack-fingerprint.yml)
+```yaml
+name: Update Stack Fingerprint
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      theme:
+        description: Card theme
+        default: ocean
+      layout:
+        description: Card layout
+        default: classic
+      size:
+        description: Card size (sm / md / lg)
+        default: md
+      path:
+        description: Sub-path to scan (leave blank for root)
+        default: ""
+
+jobs:
+  update-card:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Stack Fingerprint SVG
+        run: |
+          REPO="${{ github.repository }}"
+          THEME="${{ inputs.theme || 'ocean' }}"
+          LAYOUT="${{ inputs.layout || 'classic' }}"
+          SIZE="${{ inputs.size || 'md' }}"
+          PATH_PARAM="${{ inputs.path }}"
+
+          URL="https://stackfingerprint.vercel.app/api/card?repo=${REPO}&theme=${THEME}&layout=${LAYOUT}&size=${SIZE}"
+          [ -n "$PATH_PARAM" ] && URL="${URL}&path=${PATH_PARAM}"
+
+          mkdir -p assets
+          HTTP_CODE=$(curl -s -o assets/stack-fingerprint.svg -w "%{http_code}" "$URL")
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "API returned HTTP $HTTP_CODE — aborting." && exit 1
+          fi
+
+          if ! grep -q "<svg" assets/stack-fingerprint.svg; then
+            echo "Response does not look like an SVG — aborting." && exit 1
+          fi
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/stack-fingerprint.svg
+          git diff --cached --quiet || git commit -m "chore: update stack fingerprint card"
+          git push
+```
 
 ### Behaviour
 
@@ -364,8 +522,6 @@ To avoid rate-limiting on busy instances, set a `GITHUB_TOKEN` with read-only pu
 ```env
 GITHUB_TOKEN=ghp_...
 ```
-
-check `.env.example` file for the reference.
 
 ---
 
