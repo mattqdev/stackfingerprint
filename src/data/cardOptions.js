@@ -127,13 +127,30 @@ export const PILL_SHAPES = [
 // Which categories to include in the card (all = show everything detected)
 export const CATEGORY_FILTERS = [
   { id: "all", label: "All detected" },
-  { id: "core", label: "Core only", include: ["lang", "framework", "runtime"] },
+  {
+    id: "top",
+    label: "Top 5",
+    desc: "Language + framework only, max 5 signals — least redundant",
+    include: ["lang", "framework"],
+    maxItems: 5,
+  },
+  {
+    id: "core",
+    label: "Core only",
+    include: ["lang", "framework", "runtime"],
+  },
   {
     id: "devtools",
     label: "Dev tools",
     include: ["build", "pkgmgr", "testing", "lint"],
   },
   { id: "infra", label: "Infra & CI", include: ["cicd", "infra", "db"] },
+  {
+    id: "prodonly",
+    label: "Prod only",
+    desc: "Hides build tools, linters, CI — production dependencies only",
+    devOnly: false,
+  },
 ];
 
 // ── Data fields ────────────────────────────────────────────────────────────

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://stackfingerprint.vercel.app/schema.json",
+  "ignore": [
+    "husky",
+    "npm",
+    "actions"
+  ],
+  "pin": [
+    "nextjs",
+    "typescript",
+    "tailwindcss",
+    "vercel"
+  ],
+  "labels": {
+    "nextjs": "Next.js 14"
+  }
+}

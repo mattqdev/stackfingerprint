@@ -113,6 +113,9 @@ function renderPill(
   const fillColor = iconStyle === "mono" ? accentColor : p.color;
   const textC = iconStyle === "mono" ? "#ffffff" : (p.textColor ?? "#ffffff");
   const iconHex = textC.replace("#", "").toLowerCase();
+  // Dev-only signals (linters, build tools, CI) are shown at reduced opacity
+  // so they don't visually compete with the core production stack.
+  const pillOpacity = p.isDevOnly ? "0.55" : "0.92";
 
   let iconSVG = "";
   if (iconStyle !== "none" && p.iconSlug) {
@@ -128,9 +131,9 @@ function renderPill(
     : (+px + p.pw / 2).toFixed(1);
   const textAnchor = hasIcon ? "start" : "middle";
 
-  return `<rect x="${px}" y="${y}" width="${p.pw.toFixed(1)}" height="${pillH}" rx="${rad}" fill="${fillColor}" opacity="0.92"/>
+  return `<rect x="${px}" y="${y}" width="${p.pw.toFixed(1)}" height="${pillH}" rx="${rad}" fill="${fillColor}" opacity="${pillOpacity}"/>
       ${iconSVG}
-      <text x="${textX}" y="${(y + pillH / 2 + fontSize * 0.38).toFixed(1)}" text-anchor="${textAnchor}" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="${fontSize}" font-weight="600" fill="${textC}">${esc(p.label)}</text>`;
+      <text x="${textX}" y="${(y + pillH / 2 + fontSize * 0.38).toFixed(1)}" text-anchor="${textAnchor}" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="${fontSize}" font-weight="600" fill="${textC}" opacity="${p.isDevOnly ? "0.7" : "1"}">${esc(p.label)}</text>`;
 }
 
 // ── Background decorations ─────────────────────────────────────────────────
@@ -1130,11 +1133,26 @@ export function buildSVG(owner, repo, stack, cfg, iconBase64Map = null) {
 
   if (cfg.layout === "terminal") cfg.accentLine = "none";
 
+  // Apply category filter
   let filteredStack = stack;
   if (cfg.categoryFilter !== "all") {
     const filter = CATEGORY_FILTERS.find((f) => f.id === cfg.categoryFilter);
-    if (filter?.include)
-      filteredStack = stack.filter((t) => filter.include.includes(t.category));
+    if (filter) {
+      // include-list filter
+      if (filter.include) {
+        filteredStack = stack.filter((t) =>
+          filter.include.includes(t.category)
+        );
+      }
+      // prodonly: hide dev-only signals
+      if (filter.devOnly === false) {
+        filteredStack = filteredStack.filter((t) => !t.isDevOnly);
+      }
+      // top: cap at maxItems after category filter
+      if (filter.maxItems) {
+        filteredStack = filteredStack.slice(0, filter.maxItems);
+      }
+    }
   }
 
   switch (cfg.layout) {

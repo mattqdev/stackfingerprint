@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StackFingerprint Configuration",
+  "type": "object",
+  "properties": {
+    "ignore": {
+      "type": "array",
+      "description": "List of signal IDs to exclude from the card.",
+      "items": { "type": "string" }
+    },
+    "pin": {
+      "type": "array",
+      "description": "List of signal IDs to prioritize at the start of the card.",
+      "items": { "type": "string" }
+    },
+    "labels": {
+      "type": "object",
+      "description": "Custom display names for specific signals.",
+      "additionalProperties": { "type": "string" }
+    },
+    "path": {
+      "type": ["string", "null"],
+      "description": "The specific sub-directory to scan for monorepos."
+    }
+  },
+  "additionalProperties": false
+}

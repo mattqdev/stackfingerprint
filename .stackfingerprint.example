@@ -1,0 +1,37 @@
+{
+  "$schema": "https://stackfingerprint.vercel.app/schema.json",
+
+  // ── Ignore list ─────────────────────────────────────────────────────────
+  // Signal IDs to exclude from your card entirely.
+  // Use this to remove false positives or background dependencies you
+  // don't consider part of your "public" tech stack.
+  //
+  // Find signal IDs by scanning your repo and checking the output, or
+  // look them up in src/data/signals.js in the StackFingerprint source.
+  //
+  // Examples: "babel", "webpack", "eslint", "terraform", "rspec"
+  "ignore": [],
+
+  // ── Pin list ────────────────────────────────────────────────────────────
+  // Signal IDs to always show first, regardless of category order.
+  // Useful when you want to highlight specific technologies prominently.
+  // Pinned signals appear before all other signals in the card.
+  "pin": [],
+
+  // ── Custom labels ───────────────────────────────────────────────────────
+  // Override the display label for any signal.
+  // Useful for showing a specific version ("Next.js 14") or a preferred
+  // name that differs from the generic signal label.
+  "labels": {},
+
+  // ── Monorepo sub-path ───────────────────────────────────────────────────
+  // If your repository is a monorepo, set this to the sub-directory you
+  // want scanned. StackFingerprint will restrict file discovery to this
+  // path and its children, making the badge accurate for that package.
+  //
+  // This is equivalent to adding &path=<value> to the API URL, but
+  // commits the preference to the repository itself.
+  //
+  // Examples: "apps/web", "packages/api", "services/backend"
+  "path": null
+}

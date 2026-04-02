@@ -1,0 +1,165 @@
+# .github/workflows/stack-fingerprint.yml
+#
+# Stack Fingerprint — Self-Hosted Badge Generator
+# ─────────────────────────────────────────────────────────────────────────────
+# This action solves the supply-chain risk of embedding a third-party image URL
+# in your README. Instead of hotlinking stackfingerprint.vercel.app at render
+# time, this workflow generates the SVG on GitHub's own infrastructure and
+# commits it directly into your repository. The badge is then served by GitHub,
+# with full control over the content.
+#
+# USAGE IN YOUR README:
+#   ![Stack Fingerprint](./assets/stack-fingerprint.svg)
+#
+# MONOREPO USAGE:
+#   Set the `path` input to scan a specific sub-directory, e.g. "apps/web".
+#   You can run this workflow multiple times with different paths and output
+#   filenames to generate per-package badges.
+#
+# INPUTS (all optional — defaults shown):
+#   layout:    classic | compact | banner | tall | terminal | minimal |
+#              icons | sidebar | split | cards
+#   theme:     midnight | ocean | forest | ember | sakura | nord | dracula |
+#              cyber | matrix | nebula | monokai | abyss | … (20 themes)
+#   iconStyle: color | mono | none | icononly
+#   size:      sm | md | lg | xl
+#   filter:    all | top | core | devtools | infra | prodonly
+#   path:      (monorepo) sub-directory to scan, e.g. "apps/web"
+#   output:    path inside the repo where the SVG is saved
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Stack Fingerprint
+
+on:
+  push:
+    branches: [main, master]
+  schedule:
+    # Re-generate weekly so the badge stays current as the repo evolves
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      layout:
+        description: "Card layout"
+        default: "classic"
+        type: choice
+        options:
+          - classic
+          - compact
+          - banner
+          - tall
+          - terminal
+          - minimal
+          - icons
+          - sidebar
+          - split
+          - cards
+      theme:
+        description: "Colour theme"
+        default: "midnight"
+        type: string
+      iconStyle:
+        description: "Icon rendering style"
+        default: "color"
+        type: choice
+        options: [color, mono, none, icononly]
+      size:
+        description: "Card scale"
+        default: "md"
+        type: choice
+        options: [sm, md, lg, xl]
+      filter:
+        description: "Which signals to show"
+        default: "all"
+        type: choice
+        options: [all, top, core, devtools, infra, prodonly]
+      path:
+        description: "Sub-directory to scan (monorepo)"
+        default: ""
+        type: string
+      output:
+        description: "Output SVG path inside repo"
+        default: "assets/stack-fingerprint.svg"
+        type: string
+
+# Only one run at a time — avoids conflicting commits
+concurrency:
+  group: stack-fingerprint
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: Generate & Commit SVG
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed to commit the SVG back to the repo
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Build the API URL ──────────────────────────────────────────────
+      # We call the public API to generate the SVG. The result is committed
+      # locally so subsequent README renders never touch a third-party server.
+      - name: Build API URL
+        id: url
+        env:
+          REPO: ${{ github.repository }}
+          LAYOUT: ${{ inputs.layout || 'classic' }}
+          THEME: ${{ inputs.theme || 'midnight' }}
+          ICON_STYLE: ${{ inputs.iconStyle || 'color' }}
+          SIZE: ${{ inputs.size || 'md' }}
+          FILTER: ${{ inputs.filter || 'all' }}
+          SUB_PATH: ${{ inputs.path || '' }}
+        run: |
+          BASE="https://stackfingerprint.vercel.app/api/card"
+          PARAMS="repo=${REPO}&layout=${LAYOUT}&theme=${THEME}&iconStyle=${ICON_STYLE}&size=${SIZE}&categoryFilter=${FILTER}"
+          if [ -n "$SUB_PATH" ]; then
+            PARAMS="${PARAMS}&path=${SUB_PATH}"
+          fi
+          echo "url=${BASE}?${PARAMS}" >> "$GITHUB_OUTPUT"
+
+      # ── Fetch the SVG ─────────────────────────────────────────────────
+      - name: Fetch SVG
+        env:
+          API_URL: ${{ steps.url.outputs.url }}
+          OUTPUT: ${{ inputs.output || 'assets/stack-fingerprint.svg' }}
+        run: |
+          mkdir -p "$(dirname "$OUTPUT")"
+
+          HTTP_CODE=$(curl -sS -w "%{http_code}" -o "$OUTPUT" "$API_URL")
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::Stack Fingerprint API returned HTTP $HTTP_CODE"
+            echo "::error::URL: $API_URL"
+            cat "$OUTPUT" || true
+            exit 1
+          fi
+
+          # Basic sanity check — the file should look like an SVG
+          if ! grep -q "<svg" "$OUTPUT"; then
+            echo "::error::Response does not appear to be a valid SVG"
+            cat "$OUTPUT"
+            exit 1
+          fi
+
+          echo "✓ SVG generated successfully ($(wc -c < "$OUTPUT") bytes)"
+          echo "  Saved to: $OUTPUT"
+
+      # ── Commit the SVG if it changed ──────────────────────────────────
+      - name: Commit SVG
+        env:
+          OUTPUT: ${{ inputs.output || 'assets/stack-fingerprint.svg' }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add "$OUTPUT"
+
+          # Only commit if the SVG actually changed
+          if git diff --cached --quiet; then
+            echo "SVG unchanged — nothing to commit."
+          else
+            git commit -m "chore: update stack fingerprint badge [skip ci]"
+            git push
+            echo "✓ Badge committed and pushed."
+          fi

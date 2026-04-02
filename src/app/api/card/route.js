@@ -138,6 +138,15 @@ export async function GET(request) {
     }
   });
 
+  // ── subPath (monorepo support) ─────────────────────────────────────────
+  // ?path=apps/web restricts scanning to that directory within the repo.
+  // Sanitised: strip leading/trailing slashes, block traversal sequences.
+  const rawPath = searchParams.get("path") ?? "";
+  const subPath = rawPath
+    .replace(/\.\./g, "") // no directory traversal
+    .replace(/^\/+|\/+$/g, "") // no leading/trailing slashes
+    .trim();
+
   // ── cfg ────────────────────────────────────────────────────────────────
   // FIX: All parameters are now validated against their valid value sets,
   // preventing invalid values from reaching the SVG builder.
@@ -193,9 +202,16 @@ export async function GET(request) {
   };
 
   try {
-    const stack = await detectStack(owner, repo, fetchContents);
-    const iconBase64Map = await buildIconMap(stack, cfg.iconStyle);
-    const svg = buildSVG(owner, repo, stack, cfg, iconBase64Map);
+    const stack = await detectStack(owner, repo, fetchContents, { subPath });
+
+    // ?devOnly=0 hides dev-only signals (build tools, linters, CI) from the card.
+    // Default is to show everything so the card is maximally informative.
+    const showDevOnly = pick(searchParams, ["devOnly"], null, "1");
+    const filteredByDev =
+      showDevOnly === "0" ? stack.filter((t) => !t.isDevOnly) : stack;
+
+    const iconBase64Map = await buildIconMap(filteredByDev, cfg.iconStyle);
+    const svg = buildSVG(owner, repo, filteredByDev, cfg, iconBase64Map);
 
     return new NextResponse(svg, {
       status: 200,

@@ -42,7 +42,7 @@ const DEP_SIGNALS = {
   sass: "sass",
   "framer-motion": "framermotion",
 
-  // Build tools
+  // Build tools (dev-only by nature)
   vite: "vite",
   webpack: "webpack",
   rollup: "rollup",
@@ -54,7 +54,7 @@ const DEP_SIGNALS = {
   "@swc/cli": "swc",
   "@babel/core": "babel",
 
-  // Testing
+  // Testing (always dev-only)
   jest: "jest",
   vitest: "vitest",
   cypress: "cypress",
@@ -117,13 +117,54 @@ const DEP_SIGNALS = {
   "@huggingface/inference": "huggingface",
   ollama: "ollama",
 
-  // Linting / Formatting
+  // Linting / Formatting (always dev-only)
   eslint: "eslint",
   prettier: "prettier",
   "@biomejs/biome": "biome",
   stylelint: "stylelint",
   husky: "husky",
 };
+
+// Signal IDs that are ALWAYS considered dev-only regardless of where they appear
+const INHERENTLY_DEV = new Set([
+  "jest",
+  "vitest",
+  "cypress",
+  "playwright",
+  "storybook",
+  "mocha",
+  "eslint",
+  "prettier",
+  "biome",
+  "stylelint",
+  "husky",
+  "ruff",
+  "rubocop",
+  "commitlint",
+  "editorconfig",
+  "oxlint",
+  "vite",
+  "webpack",
+  "rollup",
+  "esbuild",
+  "parcel",
+  "tsup",
+  "swc",
+  "babel",
+  "turbo",
+  "nx",
+  "lerna",
+  "changesets",
+  "github-actions",
+  "circleci",
+  "jenkins",
+  "gitlab-ci",
+  "travisci",
+  "drone",
+  "woodpecker",
+  "argocd",
+  "semantic-release",
+]);
 
 // ── Python dependency → signal ID ─────────────────────────────────────────
 const PYTHON_DEP_SIGNALS = {
@@ -164,17 +205,40 @@ const PHP_DEP_SIGNALS = {
   "symfony/framework-bundle": "symfony",
 };
 
+// ── .stackfingerprint.json schema ─────────────────────────────────────────
+// {
+//   "ignore": ["babel", "webpack"],         // hide these signal IDs
+//   "pin": ["nextjs", "typescript"],        // always show these first
+//   "labels": { "nextjs": "Next.js 14" },  // override display labels
+//   "path": "apps/web"                      // sub-path to scan (monorepo)
+// }
+const SF_CONFIG_FILE = ".stackfingerprint.json";
+
+function parseSFConfig(content) {
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      ignore: new Set(Array.isArray(parsed.ignore) ? parsed.ignore : []),
+      pin: Array.isArray(parsed.pin) ? parsed.pin : [],
+      labels: typeof parsed.labels === "object" ? parsed.labels : {},
+      path: typeof parsed.path === "string" ? parsed.path : null,
+    };
+  } catch {
+    return { ignore: new Set(), pin: [], labels: {}, path: null };
+  }
+}
+
 // ── Parse helpers ──────────────────────────────────────────────────────────
 function parsePkgJsonDeps(content) {
   try {
     const pkg = JSON.parse(content);
-    return Object.keys({
-      ...pkg.dependencies,
-      ...pkg.devDependencies,
-      ...pkg.peerDependencies,
-    });
+    // Return separate sets so we can mark devDeps accurately
+    const prod = new Set(Object.keys(pkg.dependencies ?? {}));
+    const dev = new Set(Object.keys(pkg.devDependencies ?? {}));
+    const peer = new Set(Object.keys(pkg.peerDependencies ?? {}));
+    return { prod, dev, peer };
   } catch {
-    return [];
+    return { prod: new Set(), dev: new Set(), peer: new Set() };
   }
 }
 
@@ -217,26 +281,37 @@ function parseComposerDeps(content) {
 }
 
 // ── Resolve npm dep names to signal IDs ───────────────────────────────────
-function resolveNpmDeps(depNames, signalsById) {
-  const found = new Set();
-  for (const dep of depNames) {
+// Returns Map<signalId, { isDevOnly: boolean }>
+function resolveNpmDeps(prodDeps, devDeps, peerDeps, signalsById) {
+  const found = new Map();
+
+  const checkDep = (dep, isDev) => {
     const lower = dep.toLowerCase();
     for (const [pattern, signalId] of Object.entries(DEP_SIGNALS)) {
       if (!signalId) continue;
       if (lower === pattern || lower.startsWith(pattern + "/")) {
-        if (signalsById.has(signalId)) found.add(signalId);
+        if (signalsById.has(signalId)) {
+          const alreadyDev = found.get(signalId)?.isDevOnly ?? true;
+          // A signal is dev-only if ALL occurrences are in devDeps
+          found.set(signalId, { isDevOnly: alreadyDev && isDev });
+        }
         break;
       }
     }
-    // Detect TypeScript from @types/* or "typescript" package
+    // TypeScript
     if (lower.startsWith("@types/") || lower === "typescript") {
-      found.add("typescript");
+      found.set("typescript", { isDevOnly: isDev });
     }
-  }
+  };
+
+  for (const dep of prodDeps) checkDep(dep, false);
+  for (const dep of peerDeps) checkDep(dep, false);
+  for (const dep of devDeps) checkDep(dep, true);
+
   return found;
 }
 
-// ── Files we want to fetch content for (dep scanning) ─────────────────────
+// ── Files we want to fetch content for ────────────────────────────────────
 const DEP_FILES = new Set([
   "package.json",
   "requirements.txt",
@@ -247,10 +322,10 @@ const DEP_FILES = new Set([
   "composer.json",
   "go.mod",
   "Pipfile",
+  SF_CONFIG_FILE,
 ]);
 
 // ── Fallback: root + key-subdir strategy ──────────────────────────────────
-// Used only when the Trees API fails (permissions, network error, etc.)
 const KEY_SUBDIRS = new Set([
   "src",
   "app",
@@ -278,11 +353,12 @@ const KEY_SUBDIRS = new Set([
   "__tests__",
 ]);
 
-async function fallbackPaths(owner, repo, fetchFn) {
+async function fallbackPaths(owner, repo, fetchFn, subPath) {
   const paths = [];
+  const scanRoot = subPath || "";
   try {
-    const root = await fetchFn(owner, repo);
-    root.forEach((f) => paths.push(f.name));
+    const root = await fetchFn(owner, repo, scanRoot);
+    root.forEach((f) => paths.push(subPath ? `${subPath}/${f.name}` : f.name));
     const subdirs = root.filter(
       (f) => f.type === "dir" && KEY_SUBDIRS.has(f.name)
     );
@@ -290,8 +366,8 @@ async function fallbackPaths(owner, repo, fetchFn) {
       subdirs.map(async (d) => {
         try {
           const sub = await fetchFn(owner, repo, d.path);
-          sub.forEach((f) => paths.push(`${d.name}/${f.name}`));
-          paths.push(d.name);
+          sub.forEach((f) => paths.push(`${d.path}/${f.name}`));
+          paths.push(d.path);
         } catch {}
       })
     );
@@ -300,78 +376,83 @@ async function fallbackPaths(owner, repo, fetchFn) {
 }
 
 // ── Main export ────────────────────────────────────────────────────────────
-export async function detectStack(owner, repo, fetchFn) {
+// options.subPath — optional sub-directory to scan (monorepo support)
+//                   e.g. "apps/web" scans only that package
+export async function detectStack(owner, repo, fetchFn, options = {}) {
+  const { subPath = "" } = options;
+
   const signalsById = new Map(SIGNALS.map((s) => [s.id, s]));
+  // detected: Map<signalId, { ...signal, isDevOnly: boolean }>
   const detected = new Map();
 
-  // ── Step 1: Fetch the full file tree (2 API calls total) ─────────────────
-  // GET /repos/{owner}/{repo}           → learn default branch name
-  // GET /repos/{owner}/{repo}/git/trees/{branch}?recursive=1 → all file paths
-  //
-  // For repos with >100k objects GitHub truncates the result; we log a warning
-  // but still process whatever we got — it covers the vast majority of repos.
+  // ── Step 1: Fetch the full file tree ──────────────────────────────────
   let allPaths = [];
 
   try {
     const { tree, truncated } = await fetchTree(owner, repo);
-    allPaths = tree.map((entry) => entry.path);
+    let paths = tree.map((entry) => entry.path);
+
+    // If a sub-path is requested, filter to only paths inside it
+    if (subPath) {
+      const prefix = subPath.replace(/\/$/, "") + "/";
+      paths = paths.filter((p) => p === subPath || p.startsWith(prefix));
+    }
+
+    allPaths = paths;
     if (truncated) {
       console.warn(
         `[detect] Tree truncated for ${owner}/${repo} (>100k objects)`
       );
     }
   } catch {
-    // Trees API unavailable — fall back to the old root + key-subdir scan
-    allPaths = await fallbackPaths(owner, repo, fetchFn);
+    allPaths = await fallbackPaths(owner, repo, fetchFn, subPath);
   }
 
-  // ── Step 2: Filename-based signal matching ────────────────────────────────
-  // Match each full path AND its bare filename so signal checks written for
-  // bare names (e.g. "Dockerfile", "next.config.ts") still fire correctly
-  // even when the file is inside a subdirectory.
+  // ── Step 2: Filename-based signal matching ────────────────────────────
   const seenBare = new Set();
 
   for (const fullPath of allPaths) {
     const bare = fullPath.includes("/") ? fullPath.split("/").pop() : fullPath;
 
-    // Full-path check — catches dir-name signals like ".github", "prisma", "k8s"
+    // Full-path check — catches dir-name signals & path-sensitive patterns
     for (const sig of SIGNALS) {
       if (!detected.has(sig.id) && sig.check(fullPath)) {
-        detected.set(sig.id, sig);
+        detected.set(sig.id, {
+          ...sig,
+          isDevOnly: INHERENTLY_DEV.has(sig.id),
+        });
       }
     }
 
-    // Bare-filename check (deduplicated per unique basename to avoid N² work)
     if (!seenBare.has(bare)) {
       seenBare.add(bare);
 
       for (const sig of SIGNALS) {
         if (!detected.has(sig.id) && sig.check(bare)) {
-          detected.set(sig.id, sig);
+          detected.set(sig.id, {
+            ...sig,
+            isDevOnly: INHERENTLY_DEV.has(sig.id),
+          });
         }
       }
 
-      // Extension → language
       const dot = bare.lastIndexOf(".");
       if (dot !== -1) {
         const ext = bare.slice(dot).toLowerCase();
         for (const lang of EXT_LANGS) {
           if (!detected.has(lang.id) && lang.exts.includes(ext)) {
-            detected.set(lang.id, lang);
+            detected.set(lang.id, { ...lang, isDevOnly: false });
           }
         }
       }
     }
   }
 
-  // ── Step 3: Dependency-file content scanning ──────────────────────────────
-  // Find every dep file anywhere in the tree; prefer the shallowest copy
-  // (root package.json beats src/package.json).
-  const depFileUrls = new Map(); // bare filename → { depth, url }
+  // ── Step 3: Find dep files (prefer shallowest copy) ───────────────────
+  const depFileUrls = new Map(); // bare filename → { depth, url, fullPath }
 
   for (const fullPath of allPaths) {
     const bare = fullPath.includes("/") ? fullPath.split("/").pop() : fullPath;
-
     if (!DEP_FILES.has(bare)) continue;
 
     const depth = fullPath.split("/").length;
@@ -379,12 +460,14 @@ export async function detectStack(owner, repo, fetchFn) {
     if (!existing || depth < existing.depth) {
       depFileUrls.set(bare, {
         depth,
-        // raw.githubusercontent.com serves file contents without auth and
-        // without counting against the API rate limit.
+        fullPath,
         url: `https://raw.githubusercontent.com/${owner}/${repo}/HEAD/${fullPath}`,
       });
     }
   }
+
+  // ── Step 4: Fetch and parse dep files ─────────────────────────────────
+  let sfConfig = { ignore: new Set(), pin: [], labels: {}, path: null };
 
   await Promise.allSettled(
     [...depFileUrls.entries()].map(async ([filename, { url }]) => {
@@ -393,10 +476,28 @@ export async function detectStack(owner, repo, fetchFn) {
         if (!res.ok) return;
         const content = await res.text();
 
+        if (filename === SF_CONFIG_FILE) {
+          // Parse project config first — affects all subsequent logic
+          sfConfig = parseSFConfig(content);
+          return;
+        }
+
         if (filename === "package.json") {
-          const deps = parsePkgJsonDeps(content);
-          for (const id of resolveNpmDeps(deps, signalsById)) {
-            if (!detected.has(id)) detected.set(id, signalsById.get(id));
+          const { prod, dev, peer } = parsePkgJsonDeps(content);
+          const resolved = resolveNpmDeps(prod, dev, peer, signalsById);
+          for (const [id, { isDevOnly }] of resolved) {
+            if (!detected.has(id)) {
+              detected.set(id, {
+                ...signalsById.get(id),
+                isDevOnly: isDevOnly || INHERENTLY_DEV.has(id),
+              });
+            } else {
+              // Upgrade from dev-only to prod if now found in prod deps
+              const existing = detected.get(id);
+              if (existing.isDevOnly && !isDevOnly) {
+                detected.set(id, { ...existing, isDevOnly: false });
+              }
+            }
           }
         } else if (
           filename === "requirements.txt" ||
@@ -404,50 +505,99 @@ export async function detectStack(owner, repo, fetchFn) {
           filename === "requirements-prod.txt" ||
           filename === "Pipfile"
         ) {
+          const isDev = filename === "requirements-dev.txt";
           for (const dep of parsePythonDeps(content)) {
             const id = PYTHON_DEP_SIGNALS[dep];
-            if (id && !detected.has(id) && signalsById.has(id))
-              detected.set(id, signalsById.get(id));
+            if (id && !detected.has(id) && signalsById.has(id)) {
+              detected.set(id, {
+                ...signalsById.get(id),
+                isDevOnly: isDev || INHERENTLY_DEV.has(id),
+              });
+            }
           }
         } else if (filename === "pyproject.toml") {
           for (const dep of parsePyprojectDeps(content)) {
             const id = PYTHON_DEP_SIGNALS[dep];
-            if (id && !detected.has(id) && signalsById.has(id))
-              detected.set(id, signalsById.get(id));
+            if (id && !detected.has(id) && signalsById.has(id)) {
+              detected.set(id, {
+                ...signalsById.get(id),
+                isDevOnly: INHERENTLY_DEV.has(id),
+              });
+            }
           }
         } else if (filename === "Gemfile") {
           for (const dep of parseGemfileDeps(content)) {
             const id = RUBY_DEP_SIGNALS[dep];
-            if (id && !detected.has(id) && signalsById.has(id))
-              detected.set(id, signalsById.get(id));
+            if (id && !detected.has(id) && signalsById.has(id)) {
+              detected.set(id, {
+                ...signalsById.get(id),
+                isDevOnly: INHERENTLY_DEV.has(id),
+              });
+            }
           }
         } else if (filename === "composer.json") {
           for (const dep of parseComposerDeps(content)) {
             const id = PHP_DEP_SIGNALS[dep];
-            if (id && !detected.has(id) && signalsById.has(id))
-              detected.set(id, signalsById.get(id));
+            if (id && !detected.has(id) && signalsById.has(id)) {
+              detected.set(id, {
+                ...signalsById.get(id),
+                isDevOnly: INHERENTLY_DEV.has(id),
+              });
+            }
           }
         } else if (filename === "go.mod") {
           content.split("\n").forEach((line) => {
             const t = line.trim();
-            if (t.includes("gin-gonic/gin") && !detected.has("gin"))
-              detected.set("gin", signalsById.get("gin"));
-            if (t.includes("gofiber/fiber") && !detected.has("fiber"))
-              detected.set("fiber", signalsById.get("fiber"));
+            if (t.includes("gin-gonic/gin") && !detected.has("gin")) {
+              detected.set("gin", {
+                ...signalsById.get("gin"),
+                isDevOnly: false,
+              });
+            }
+            if (t.includes("gofiber/fiber") && !detected.has("fiber")) {
+              detected.set("fiber", {
+                ...signalsById.get("fiber"),
+                isDevOnly: false,
+              });
+            }
           });
         }
       } catch {
-        // Dep scanning is best-effort — silently skip failures
+        // Dep scanning is best-effort
       }
     })
   );
 
-  // ── Step 4: Sort by category order ────────────────────────────────────────
+  // ── Step 5: Apply .stackfingerprint.json config ────────────────────────
+  // Remove ignored signals
+  for (const id of sfConfig.ignore) {
+    detected.delete(id);
+  }
+
+  // Apply custom labels
+  for (const [id, label] of Object.entries(sfConfig.labels)) {
+    if (detected.has(id)) {
+      detected.set(id, { ...detected.get(id), label });
+    }
+  }
+
+  // ── Step 6: Sort — pinned first, then by category order ───────────────
   const catOrder = Object.fromEntries(
     Object.entries(CATEGORY_META).map(([k, v]) => [k, v.order])
   );
 
-  return [...detected.values()].sort(
-    (a, b) => (catOrder[a.category] ?? 99) - (catOrder[b.category] ?? 99)
-  );
+  const pinnedSet = new Set(sfConfig.pin);
+  const all = [...detected.values()];
+
+  const pinned = sfConfig.pin
+    .filter((id) => detected.has(id))
+    .map((id) => detected.get(id));
+
+  const rest = all
+    .filter((s) => !pinnedSet.has(s.id))
+    .sort(
+      (a, b) => (catOrder[a.category] ?? 99) - (catOrder[b.category] ?? 99)
+    );
+
+  return [...pinned, ...rest];
 }
