@@ -205,27 +205,14 @@ const PHP_DEP_SIGNALS = {
   "symfony/framework-bundle": "symfony",
 };
 
-// ── .stackfingerprint.json schema ─────────────────────────────────────────
-// {
-//   "ignore":  ["babel", "webpack"],         // hide these signal IDs
-//   "pin":     ["nextjs", "typescript"],     // always show these first
-//   "labels":  { "nextjs": "Next.js 14" },  // override display labels
-//   "path":    "apps/web",                   // sub-path to scan (monorepo)
-//   "card": {                                // default card presentation
-//     "repo":        "owner/repo",           // canonical repo (used as hint)
-//     "theme":       "ocean",
-//     "layout":      "classic",
-//     "size":        "md",
-//     "icons":       "color",                // legacy alias for iconStyle
-//     "pills":       "round",                // legacy alias for pillShape
-//     "iconStyle":   "color",
-//     "pillShape":   "round",
-//     "categoryFilter": "all",
-//     "accentLine":  "bar",
-//     "bgDecoration":"grid",
-//     "dataFields": { ... }
-//   }
-// }
+// ── Config file names to try (both with and without .json extension) ──────
+// We try both .stackfingerprint.json and .stackfingerprint (no extension)
+export const SF_CONFIG_FILES = new Set([
+  ".stackfingerprint.json",
+  ".stackfingerprint",
+]);
+
+// Keep the original export for backward compat
 export const SF_CONFIG_FILE = ".stackfingerprint.json";
 
 export function parseSFConfig(content) {
@@ -239,10 +226,6 @@ export function parseSFConfig(content) {
           ? parsed.labels
           : {},
       path: typeof parsed.path === "string" ? parsed.path : null,
-      // ── card preferences ───────────────────────────────────────────────
-      // Normalise both the new canonical keys and the legacy aliases
-      // (icons → iconStyle, pills → pillShape) so route.js only has to
-      // deal with one canonical shape.
       card: parseSFCardConfig(parsed.card),
     };
   } catch {
@@ -250,17 +233,11 @@ export function parseSFConfig(content) {
   }
 }
 
-// ── Normalise a raw card block from the config file ───────────────────────
-// Accepts both the canonical key names (iconStyle, pillShape) and the
-// legacy URL aliases (icons, pills) that are documented in the README.
-// Unknown keys are silently dropped so the output is always safe to spread
-// onto the route's cfg object.
 function parseSFCardConfig(raw) {
   if (!raw || typeof raw !== "object") return {};
 
   const card = {};
 
-  // Simple string fields — canonical names first, no transformation needed
   const STRING_FIELDS = [
     "theme",
     "layout",
@@ -273,21 +250,18 @@ function parseSFCardConfig(raw) {
     if (typeof raw[key] === "string") card[key] = raw[key];
   }
 
-  // iconStyle — accepts "iconStyle" (canonical) or "icons" (legacy alias)
   if (typeof raw.iconStyle === "string") {
     card.iconStyle = raw.iconStyle;
   } else if (typeof raw.icons === "string") {
     card.iconStyle = raw.icons;
   }
 
-  // pillShape — accepts "pillShape" (canonical) or "pills" (legacy alias)
   if (typeof raw.pillShape === "string") {
     card.pillShape = raw.pillShape;
   } else if (typeof raw.pills === "string") {
     card.pillShape = raw.pills;
   }
 
-  // dataFields — partial object, only override defined keys
   if (raw.dataFields && typeof raw.dataFields === "object") {
     card.dataFields = {};
     const BOOL_FIELDS = [
@@ -399,7 +373,9 @@ const DEP_FILES = new Set([
   "composer.json",
   "go.mod",
   "Pipfile",
-  SF_CONFIG_FILE,
+  // Both config file variants
+  ".stackfingerprint.json",
+  ".stackfingerprint",
 ]);
 
 // ── Fallback: root + key-subdir strategy ──────────────────────────────────
@@ -453,12 +429,13 @@ async function fallbackPaths(owner, repo, fetchFn, subPath) {
 }
 
 // ── Main export ────────────────────────────────────────────────────────────
-// Returns { stack, sfConfig } instead of just the stack array.
-// route.js uses sfConfig.card to populate cfg defaults before URL params
-// are applied on top — so the config file acts as a repo-level default layer.
+// Returns { stack, sfConfig, ignoredStack } instead of just the stack array.
+//
+// - stack:        signals to show (after applying ignore/pin)
+// - sfConfig:     the parsed .stackfingerprint config
+// - ignoredStack: signals that were in ignore list (for showIgnored feature)
 //
 // options.subPath — optional sub-directory to scan (monorepo support)
-//                   e.g. "apps/web" scans only that package
 export async function detectStack(owner, repo, fetchFn, options = {}) {
   const { subPath = "" } = options;
 
@@ -545,9 +522,6 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
   }
 
   // ── Step 4: Fetch and parse dep files ─────────────────────────────────
-  // sfConfig is populated when the .stackfingerprint.json file is found.
-  // It is returned alongside the stack so route.js can apply the card
-  // defaults without a second network round-trip.
   let sfConfig = {
     ignore: new Set(),
     pin: [],
@@ -563,8 +537,22 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
         if (!res.ok) return;
         const content = await res.text();
 
-        if (filename === SF_CONFIG_FILE) {
-          sfConfig = parseSFConfig(content);
+        // Handle both .stackfingerprint and .stackfingerprint.json
+        if (SF_CONFIG_FILES.has(filename)) {
+          // Only parse if we haven't already found a config
+          // Prefer .stackfingerprint.json over .stackfingerprint if both exist
+          const parsed = parseSFConfig(content);
+          // Only overwrite if we got something useful or haven't set yet
+          if (
+            parsed.ignore.size > 0 ||
+            parsed.pin.length > 0 ||
+            Object.keys(parsed.labels).length > 0 ||
+            parsed.path ||
+            Object.keys(parsed.card).length > 0 ||
+            sfConfig.ignore.size === 0
+          ) {
+            sfConfig = parsed;
+          }
           return;
         }
 
@@ -653,11 +641,17 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
     })
   );
 
-  // ── Step 5: Apply .stackfingerprint.json config ────────────────────────
+  // ── Step 5: Apply .stackfingerprint config ─────────────────────────────
+  // Collect ignored signals BEFORE deleting them (for showIgnored feature)
+  const ignoredStack = [];
   for (const id of sfConfig.ignore) {
-    detected.delete(id);
+    if (detected.has(id)) {
+      ignoredStack.push({ ...detected.get(id), isIgnored: true });
+      detected.delete(id);
+    }
   }
 
+  // Apply custom labels
   for (const [id, label] of Object.entries(sfConfig.labels)) {
     if (detected.has(id)) {
       detected.set(id, { ...detected.get(id), label });
@@ -682,7 +676,9 @@ export async function detectStack(owner, repo, fetchFn, options = {}) {
       (a, b) => (catOrder[a.category] ?? 99) - (catOrder[b.category] ?? 99)
     );
 
-  // ── Return both the ordered stack and the parsed config ────────────────
-  // route.js destructures this to apply card defaults before URL params.
-  return { stack: [...pinned, ...rest], sfConfig };
+  return {
+    stack: [...pinned, ...rest],
+    sfConfig,
+    ignoredStack,
+  };
 }

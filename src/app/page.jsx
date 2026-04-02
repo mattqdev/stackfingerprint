@@ -24,7 +24,6 @@ const GITHUB_REPO = "https://github.com/mattqdev/stackfingerprint";
 
 // ── URL ↔ Config helpers ───────────────────────────────────────────────────
 
-// Flat keys that map 1:1 to search params
 const TOP_KEYS = [
   "layout",
   "size",
@@ -34,42 +33,34 @@ const TOP_KEYS = [
   "categoryFilter",
   "accentLine",
   "bgDecoration",
+  "showIgnored", // new param
 ];
 
-// dataFields booleans use "df_<id>" as param names
 function cfgToParams(repo, cfg) {
   const p = new URLSearchParams();
-
   if (repo) p.set("repo", repo);
-
   TOP_KEYS.forEach((k) => {
     if (cfg[k] !== DEFAULT_CONFIG[k]) p.set(k, cfg[k]);
   });
-
   Object.entries(cfg.dataFields).forEach(([k, v]) => {
     if (v !== DEFAULT_CONFIG.dataFields[k]) p.set(`df_${k}`, v ? "1" : "0");
   });
-
   return p;
 }
 
 function paramsToState(params) {
   const repo = params.get("repo") ?? "";
-
   const cfg = {
     ...DEFAULT_CONFIG,
     dataFields: { ...DEFAULT_CONFIG.dataFields },
   };
-
   TOP_KEYS.forEach((k) => {
     if (params.has(k)) cfg[k] = params.get(k);
   });
-
   Object.keys(DEFAULT_CONFIG.dataFields).forEach((k) => {
     const raw = params.get(`df_${k}`);
     if (raw !== null) cfg.dataFields[k] = raw === "1";
   });
-
   return { repo, cfg };
 }
 
@@ -587,8 +578,6 @@ export default function Page() {
   const [booted, setBooted] = useState(false);
   const [showBoot, setShowBoot] = useState(true);
 
-  // Prevent the URL-sync effect from firing on the very first render
-  // (we write to URL only after user interaction, not on initial hydration)
   const isFirstRender = useRef(true);
 
   // ── 1. On mount: read URL params → restore state & auto-generate ──────
@@ -605,13 +594,12 @@ export default function Page() {
       if (repo) {
         setInput(repo);
         setCfg(restoredCfg);
-        // Delay slightly so state settles before generate runs
         setTimeout(() => generateWithArgs(repo, restoredCfg), 50);
       }
     }
   }, []);
 
-  // ── 2. On every cfg / input change: push to URL (skip first render) ───
+  // ── 2. On every cfg / input change: push to URL ───
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -634,7 +622,7 @@ export default function Page() {
     }, 300);
   };
 
-  // Core generate that accepts explicit args (used for URL restoration)
+  // ── Core generate — FIX: destructure { stack, sfConfig } from detectStack ──
   const generateWithArgs = useCallback(async (rawInput, activeCfg) => {
     const parsed = parseRepoInput(rawInput);
     if (!parsed) {
@@ -647,13 +635,25 @@ export default function Page() {
     setPhase("loading");
     setErrorMsg("");
     try {
-      const [detected, repoMeta] = await Promise.all([
+      // detectStack now returns { stack, sfConfig } — must destructure properly
+      const [detectResult, repoMeta] = await Promise.all([
         detectStack(parsed.owner, parsed.repo, fetchContents),
         fetchRepoMeta(parsed.owner, parsed.repo),
       ]);
-      const card = buildSVG(parsed.owner, parsed.repo, detected, activeCfg);
+
+      // Guard: handle both old array return and new object return gracefully
+      const detectedStack = Array.isArray(detectResult)
+        ? detectResult
+        : (detectResult?.stack ?? []);
+
+      const card = buildSVG(
+        parsed.owner,
+        parsed.repo,
+        detectedStack,
+        activeCfg
+      );
       setSvg(card);
-      setStack(detected);
+      setStack(detectedStack);
       setRepoInfo(parsed);
       setMeta(repoMeta);
       setPhase("done");
@@ -661,8 +661,11 @@ export default function Page() {
       const msgs = {
         RATE_LIMIT: "ERR: GitHub rate limit reached — retry in ~60s",
         NOT_FOUND: "ERR: repository not found or is private",
+        FORBIDDEN: "ERR: access forbidden — GitHub rate limit or token issue",
+        BAD_TOKEN: "ERR: invalid GitHub token",
+        API_ERROR: "ERR: GitHub API error — please retry",
       };
-      setErrorMsg(msgs[e.message] ?? "ERR: unexpected failure");
+      setErrorMsg(msgs[e.message] ?? `ERR: unexpected failure (${e.message})`);
       setPhase("error");
     }
   }, []);

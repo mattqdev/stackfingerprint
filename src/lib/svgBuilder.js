@@ -21,7 +21,6 @@ const esc = (s) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-// ── Safe scale extractor ───────────────────────────────────────────────────
 function getSafeScale(sizeObj) {
   if (!sizeObj) return 1;
   const raw =
@@ -30,8 +29,6 @@ function getSafeScale(sizeObj) {
 }
 
 // ── Pill layout helper ─────────────────────────────────────────────────────
-// When iconStyle is "icononly" every pill is a square of size pillH,
-// so pw is always pillH regardless of label length.
 function layoutPills(
   pills,
   maxW,
@@ -66,8 +63,9 @@ function layoutPills(
 }
 
 // ── Shared pill SVG ────────────────────────────────────────────────────────
-// iconStyle "icononly": square tile = pillH × pillH, centred icon, no text.
-// Falls back to 2-char initials when no icon is available.
+// isIgnored pills get a very low opacity + dashed/ghost border treatment
+// isDevOnly pills get 55% opacity
+// Normal pills get 92% opacity
 function renderPill(
   p,
   x,
@@ -80,9 +78,16 @@ function renderPill(
   accentColor,
   iconBase64Map
 ) {
+  // ── Opacity logic ──────────────────────────────────────────────────────
+  // isIgnored: 0.25 opacity (ghost — still visible but clearly excluded)
+  // isDevOnly: 0.55 opacity (dimmed)
+  // normal:    0.92 opacity
+  const pillOpacity = p.isIgnored ? "0.25" : p.isDevOnly ? "0.55" : "0.92";
+  const textOpacity = p.isIgnored ? "0.3" : p.isDevOnly ? "0.7" : "1";
+
   // ── icononly: square tile, no label ───────────────────────────────────
   if (iconStyle === "icononly") {
-    const size = pillH; // square
+    const size = pillH;
     const px = x.toFixed(1);
     const rad = pillR.toFixed(1);
     const fillColor = p.color;
@@ -99,11 +104,15 @@ function renderPill(
       }
     }
     if (!inner) {
-      // Fallback: 2-char initials centred in the square
       inner = `<text x="${(+px + size / 2).toFixed(1)}" y="${(y + size / 2 + fontSize * 0.38).toFixed(1)}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="${Math.round(fontSize * 0.9)}" font-weight="700" fill="${textC}">${esc(p.label.slice(0, 2))}</text>`;
     }
 
-    return `<rect x="${px}" y="${y}" width="${size}" height="${size}" rx="${rad}" fill="${fillColor}" opacity="0.92"/>
+    // Ghost border for ignored pills in icononly mode
+    const strokeAttr = p.isIgnored
+      ? ` stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-dasharray="3,2"`
+      : "";
+
+    return `<rect x="${px}" y="${y}" width="${size}" height="${size}" rx="${rad}" fill="${fillColor}" opacity="${pillOpacity}"${strokeAttr}/>
       ${inner}`;
   }
 
@@ -113,9 +122,6 @@ function renderPill(
   const fillColor = iconStyle === "mono" ? accentColor : p.color;
   const textC = iconStyle === "mono" ? "#ffffff" : (p.textColor ?? "#ffffff");
   const iconHex = textC.replace("#", "").toLowerCase();
-  // Dev-only signals (linters, build tools, CI) are shown at reduced opacity
-  // so they don't visually compete with the core production stack.
-  const pillOpacity = p.isDevOnly ? "0.55" : "0.92";
 
   let iconSVG = "";
   if (iconStyle !== "none" && p.iconSlug) {
@@ -131,9 +137,14 @@ function renderPill(
     : (+px + p.pw / 2).toFixed(1);
   const textAnchor = hasIcon ? "start" : "middle";
 
-  return `<rect x="${px}" y="${y}" width="${p.pw.toFixed(1)}" height="${pillH}" rx="${rad}" fill="${fillColor}" opacity="${pillOpacity}"/>
+  // Ghost dashed border for ignored pills
+  const strokeAttr = p.isIgnored
+    ? ` stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-dasharray="4,3"`
+    : "";
+
+  return `<rect x="${px}" y="${y}" width="${p.pw.toFixed(1)}" height="${pillH}" rx="${rad}" fill="${fillColor}" opacity="${pillOpacity}"${strokeAttr}/>
       ${iconSVG}
-      <text x="${textX}" y="${(y + pillH / 2 + fontSize * 0.38).toFixed(1)}" text-anchor="${textAnchor}" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="${fontSize}" font-weight="600" fill="${textC}" opacity="${p.isDevOnly ? "0.7" : "1"}">${esc(p.label)}</text>`;
+      <text x="${textX}" y="${(y + pillH / 2 + fontSize * 0.38).toFixed(1)}" text-anchor="${textAnchor}" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="${fontSize}" font-weight="600" fill="${textC}" opacity="${textOpacity}">${esc(p.label)}</text>`;
 }
 
 // ── Background decorations ─────────────────────────────────────────────────
@@ -197,7 +208,6 @@ function accentLineParts(type, x, y, w, color) {
   return { defs: "", body: "" };
 }
 
-// ── Shared category order ──────────────────────────────────────────────────
 const CAT_ORDER = {
   lang: 0,
   framework: 1,
@@ -222,16 +232,8 @@ function groupByCategory(stack) {
   );
 }
 
-// ── Overflow badge helper ──────────────────────────────────────────────────
-function overflowBadge(overflow, x, y, PH, PR, theme) {
-  if (overflow <= 0) return "";
-  return `<rect x="${x}" y="${y}" width="30" height="${PH}" rx="${PR}" fill="rgba(255,255,255,0.06)" stroke="${theme.border}" stroke-width="1"/>
-    <text x="${x + 15}" y="${y + PH / 2 + 4}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="rgba(255,255,255,0.35)">+${overflow}</text>`;
-}
-
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Layout: CLASSIC ───────────────────────────────────────────────────────────
-// Header + up to 3 centred pill rows. The general-purpose default.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
   const W = 600;
@@ -242,11 +244,10 @@ function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
   const FS = 11,
     IW = 14,
     GAP = 8;
-  const HEADER_H = 76; // space above first pill row
-  const FOOTER_H = 28; // space below last pill row
-  const PAD_V = 8; // vertical pad between rows
+  const HEADER_H = 76;
+  const FOOTER_H = 28;
+  const PAD_V = 8;
 
-  // No cap — pack all pills into as many rows as needed
   const rows = layoutPills(stack, W, PH, FS, IW, GAP, Infinity, cfg.iconStyle);
 
   let pillsSVG = "";
@@ -274,7 +275,6 @@ function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
   if (!stack.length)
     pillsSVG = `<text x="${W / 2}" y="130" text-anchor="middle" font-family="ui-monospace,monospace" font-size="12" fill="${theme.muted}">minimal stack detected</text>`;
 
-  // Height shrinks/grows to exactly fit content
   const gridH = rows.length > 0 ? rows.length * (PH + PAD_V) - PAD_V : PH;
   const H = HEADER_H + gridH + FOOTER_H;
 
@@ -295,7 +295,7 @@ function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
     </text>`
         : ""
     }
-    ${cfg.dataFields.signalCount ? `<text x="22" y="68" font-family="ui-monospace,monospace" font-size="9" fill="${theme.sub}" letter-spacing="1.8">STACK FINGERPRINT · ${stack.length} SIGNAL${stack.length !== 1 ? "S" : ""} DETECTED</text>` : ""}
+    ${cfg.dataFields.signalCount ? `<text x="22" y="68" font-family="ui-monospace,monospace" font-size="9" fill="${theme.sub}" letter-spacing="1.8">STACK FINGERPRINT · ${stack.filter((s) => !s.isIgnored).length} SIGNAL${stack.filter((s) => !s.isIgnored).length !== 1 ? "S" : ""} DETECTED</text>` : ""}
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="22" y="${H - 12}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}" letter-spacing="0.8">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
     ${cfg.dataFields.brandLabel ? `<text x="${W - 22}" y="${H - 12}" text-anchor="end" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}" letter-spacing="0.8">stackfingerprint.vercel.app</text>` : ""}
@@ -305,7 +305,6 @@ function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Layout: COMPACT ───────────────────────────────────────────────────────────
-// Single pill row, minimal height. Best for inline embeds.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildCompact(owner, repo, stack, theme, cfg, iconBase64Map) {
   const W = 500;
@@ -320,8 +319,6 @@ function buildCompact(owner, repo, stack, theme, cfg, iconBase64Map) {
     FOOTER_H = 18,
     ROW_PAD = 8;
 
-  // Pack all pills — compact stays single-row by design but if icononly is
-  // active the squares fit many more, so allow multiple rows.
   const rows = layoutPills(stack, W, PH, FS, IW, GAP, Infinity, cfg.iconStyle);
 
   let pillsSVG = "";
@@ -366,7 +363,7 @@ function buildCompact(owner, repo, stack, theme, cfg, iconBase64Map) {
     </text>`
         : ""
     }
-    ${cfg.dataFields.signalCount ? `<text x="20" y="44" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="1.5">${stack.length} SIGNALS</text>` : ""}
+    ${cfg.dataFields.signalCount ? `<text x="20" y="44" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="1.5">${stack.filter((s) => !s.isIgnored).length} SIGNALS</text>` : ""}
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="${W / 2}" y="${H - 6}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
   `
@@ -375,7 +372,6 @@ function buildCompact(owner, repo, stack, theme, cfg, iconBase64Map) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Layout: BANNER ────────────────────────────────────────────────────────────
-// Wide landscape, 2-row pills. Good for project pages and social previews.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
   const W = 760;
@@ -434,7 +430,7 @@ function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
     </text>`
         : ""
     }
-    ${cfg.dataFields.signalCount ? `<text x="24" y="56" font-family="ui-monospace,monospace" font-size="9" fill="${theme.sub}" letter-spacing="1.5">STACK FINGERPRINT · ${stack.length} SIGNALS</text>` : ""}
+    ${cfg.dataFields.signalCount ? `<text x="24" y="56" font-family="ui-monospace,monospace" font-size="9" fill="${theme.sub}" letter-spacing="1.5">STACK FINGERPRINT · ${stack.filter((s) => !s.isIgnored).length} SIGNALS</text>` : ""}
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="24" y="${H - 8}" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
     ${cfg.dataFields.brandLabel ? `<text x="${W - 24}" y="${H - 8}" text-anchor="end" font-family="ui-monospace,monospace" font-size="8" fill="${theme.muted}">stackfingerprint.vercel.app</text>` : ""}
@@ -444,7 +440,6 @@ function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Layout: TALL ──────────────────────────────────────────────────────────────
-// Portrait card, pills grouped by category with section labels.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildTall(owner, repo, stack, theme, cfg, iconBase64Map) {
   const W = 380,
@@ -511,7 +506,7 @@ function buildTall(owner, repo, stack, theme, cfg, iconBase64Map) {
     </text>`
         : ""
     }
-    ${cfg.dataFields.signalCount ? `<text x="18" y="54" font-family="ui-monospace,monospace" font-size="8.5" fill="${theme.sub}" letter-spacing="1.5">${stack.length} SIGNALS DETECTED</text>` : ""}
+    ${cfg.dataFields.signalCount ? `<text x="18" y="54" font-family="ui-monospace,monospace" font-size="8.5" fill="${theme.sub}" letter-spacing="1.5">${stack.filter((s) => !s.isIgnored).length} SIGNALS DETECTED</text>` : ""}
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="18" y="${actualH - 12}" font-family="ui-monospace,monospace" font-size="7.5" fill="${theme.muted}">github.com/${esc(owner)}/${esc(repo)}</text>` : ""}
   `
@@ -520,14 +515,15 @@ function buildTall(owner, repo, stack, theme, cfg, iconBase64Map) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Layout: TERMINAL ──────────────────────────────────────────────────────────
-// Monospace CLI-style readout, text-only, no pill icons.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildTerminal(owner, repo, stack, theme, cfg) {
   const W = 600;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
 
-  const groups = groupByCategory(stack);
+  // Terminal shows only non-ignored signals
+  const visibleStack = stack.filter((s) => !s.isIgnored);
+  const groups = groupByCategory(visibleStack);
   const lines = [];
   lines.push({
     prompt: "$",
@@ -536,7 +532,6 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
   });
   lines.push({ prompt: "", cmd: "", color: "transparent" });
 
-  // No group cap — show all categories
   groups.forEach(([cat, items]) => {
     const label = (CATEGORY_META[cat]?.label ?? cat).padEnd(12);
     lines.push({ label, vals: items.map((i) => i.label).join(", ") });
@@ -545,7 +540,7 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
   lines.push({ prompt: "", cmd: "", color: "transparent" });
   lines.push({
     prompt: "✓",
-    cmd: `${stack.length} signals detected`,
+    cmd: `${visibleStack.length} signals detected`,
     color: theme.accent,
   });
 
@@ -594,8 +589,6 @@ function buildTerminal(owner, repo, stack, theme, cfg) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Layout: MINIMAL ───────────────────────────────────────────────────────────
-// No header chrome — just pills on a clean background. Perfect for README
-// embeds where you don't want the repo name repeated.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildMinimal(owner, repo, stack, theme, cfg, iconBase64Map) {
   const W = 560;
@@ -609,7 +602,6 @@ function buildMinimal(owner, repo, stack, theme, cfg, iconBase64Map) {
   const PAD_V = 16,
     ROW_GAP = 6;
 
-  // No cap — lay out every tech, as many rows as needed
   const rows = layoutPills(stack, W, PH, FS, IW, GAP, Infinity, cfg.iconStyle);
 
   let pillsSVG = "";
@@ -652,19 +644,15 @@ function buildMinimal(owner, repo, stack, theme, cfg, iconBase64Map) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Layout: ICONS ─────────────────────────────────────────────────────────────
-// Icon-only grid — no text labels, maximum density. Great for a visual glance
-// at a large stack without taking up much vertical space.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildIcons(owner, repo, stack, theme, cfg, iconBase64Map) {
   const COLS = 12;
   const CELL = 36,
     PAD = 16,
     GAP = 8;
-  const ICW = 20; // icon size inside each cell
+  const ICW = 20;
 
-  // No cap — show all techs, grid grows as needed
   const visible = stack;
-  const overflow = 0; // nothing hidden
   const rows = Math.ceil(visible.length / COLS);
 
   const W = COLS * (CELL + GAP) - GAP + PAD * 2;
@@ -689,34 +677,28 @@ function buildIcons(owner, repo, stack, theme, cfg, iconBase64Map) {
     const textC =
       cfg.iconStyle === "mono" ? "#ffffff" : (tech.textColor ?? "#ffffff");
     const iconHex = textC.replace("#", "").toLowerCase();
+    // Ghost treatment for ignored signals
+    const cellOpacity = tech.isIgnored ? "0.2" : "0.9";
+    const strokeAttr = tech.isIgnored
+      ? ` stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-dasharray="3,2"`
+      : "";
 
-    cellsSVG += `<rect x="${cx}" y="${cy}" width="${CELL}" height="${CELL}" rx="${PR}" fill="${fillColor}" opacity="0.9"/>`;
+    cellsSVG += `<rect x="${cx}" y="${cy}" width="${CELL}" height="${CELL}" rx="${PR}" fill="${fillColor}" opacity="${cellOpacity}"${strokeAttr}/>`;
 
     if (cfg.iconStyle !== "none" && tech.iconSlug) {
       const href = resolveIcon(tech.iconSlug, iconHex, iconBase64Map);
       if (href) {
         const iOff = (CELL - ICW) / 2;
-        cellsSVG += `<image href="${href}" x="${cx + iOff}" y="${cy + iOff}" width="${ICW}" height="${ICW}"/>`;
+        cellsSVG += `<image href="${href}" x="${cx + iOff}" y="${cy + iOff}" width="${ICW}" height="${ICW}" opacity="${tech.isIgnored ? "0.3" : "1"}"/>`;
       } else {
-        // Fallback: first 2 chars of label
         const initials = tech.label.slice(0, 2);
-        cellsSVG += `<text x="${cx + CELL / 2}" y="${cy + CELL / 2 + 4}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" font-weight="700" fill="${textC}">${esc(initials)}</text>`;
+        cellsSVG += `<text x="${cx + CELL / 2}" y="${cy + CELL / 2 + 4}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" font-weight="700" fill="${textC}" opacity="${tech.isIgnored ? "0.3" : "1"}">${esc(initials)}</text>`;
       }
     } else {
       const initials = tech.label.slice(0, 2);
-      cellsSVG += `<text x="${cx + CELL / 2}" y="${cy + CELL / 2 + 4}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" font-weight="700" fill="${textC}">${esc(initials)}</text>`;
+      cellsSVG += `<text x="${cx + CELL / 2}" y="${cy + CELL / 2 + 4}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" font-weight="700" fill="${textC}" opacity="${tech.isIgnored ? "0.3" : "1"}">${esc(initials)}</text>`;
     }
   });
-
-  // Overflow cell
-  if (overflow > 0 && cfg.dataFields.overflowBadge) {
-    const col = visible.length % COLS;
-    const row = Math.floor(visible.length / COLS);
-    const cx = PAD + col * (CELL + GAP);
-    const cy = headerH + PAD + row * (CELL + GAP);
-    cellsSVG += `<rect x="${cx}" y="${cy}" width="${CELL}" height="${CELL}" rx="${PR}" fill="rgba(255,255,255,0.06)" stroke="${theme.border}" stroke-width="1"/>`;
-    cellsSVG += `<text x="${cx + CELL / 2}" y="${cy + CELL / 2 + 4}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="rgba(255,255,255,0.4)">+${overflow}</text>`;
-  }
 
   return buildWrapper(
     W,
@@ -743,8 +725,6 @@ function buildIcons(owner, repo, stack, theme, cfg, iconBase64Map) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Layout: SIDEBAR ───────────────────────────────────────────────────────────
-// Narrow vertical strip (160px wide). Designed to sit in a README sidebar,
-// wiki panel, or documentation page margin. One pill per row, full width.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
   const isIconOnly = cfg.iconStyle === "icononly";
@@ -756,9 +736,7 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
     GAP = 5,
     PAD = 12;
 
-  // No cap — show all techs; sidebar grows vertically
   const visible = stack;
-  const overflow = 0;
   const headerH = cfg.dataFields.repoName ? 52 : PAD;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
@@ -767,17 +745,14 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
   let H;
 
   if (isIconOnly) {
-    // Grid of squares: 3 columns inside 160px sidebar
     const COLS = 3;
     const CELL = PH,
       HGAP = GAP,
       VGAP = GAP;
     const rowCount = Math.ceil(visible.length / COLS);
     const gridH = rowCount * (CELL + VGAP) - VGAP;
-    const overflowH =
-      overflow > 0 && cfg.dataFields.overflowBadge ? CELL + VGAP : 0;
     const footerH = cfg.dataFields.footerUrl ? 18 : 0;
-    H = headerH + PAD + gridH + overflowH + PAD + footerH;
+    H = headerH + PAD + gridH + PAD + footerH;
 
     visible.forEach((p, i) => {
       const col = i % COLS;
@@ -797,22 +772,10 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
         iconBase64Map
       );
     });
-
-    if (overflow > 0 && cfg.dataFields.overflowBadge) {
-      const col = visible.length % COLS;
-      const row = Math.floor(visible.length / COLS);
-      const x = PAD + col * (CELL + HGAP);
-      const y = headerH + PAD + row * (CELL + VGAP);
-      pillsSVG += `<rect x="${x}" y="${y}" width="${CELL}" height="${CELL}" rx="${PR}" fill="rgba(255,255,255,0.06)" stroke="${theme.border}" stroke-width="1"/>`;
-      pillsSVG += `<text x="${x + CELL / 2}" y="${y + CELL / 2 + 3.5}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="7" fill="rgba(255,255,255,0.35)">+${overflow}</text>`;
-    }
   } else {
-    // Original: one full-width pill per row
     const itemsH = visible.length * (PH + GAP) - GAP;
-    const overflowH =
-      overflow > 0 && cfg.dataFields.overflowBadge ? PH + GAP : 0;
     const footerH = cfg.dataFields.footerUrl ? 18 : 0;
-    H = headerH + itemsH + overflowH + PAD + footerH;
+    H = headerH + itemsH + PAD + footerH;
 
     visible.forEach((p, i) => {
       const pw = W - PAD * 2;
@@ -830,13 +793,6 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
         iconBase64Map
       );
     });
-
-    if (overflow > 0 && cfg.dataFields.overflowBadge) {
-      const y = headerH + visible.length * (PH + GAP);
-      const pw = W - PAD * 2;
-      pillsSVG += `<rect x="${PAD}" y="${y}" width="${pw}" height="${PH}" rx="${PR}" fill="rgba(255,255,255,0.06)" stroke="${theme.border}" stroke-width="1"/>`;
-      pillsSVG += `<text x="${W / 2}" y="${y + PH / 2 + 3.5}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="8" fill="rgba(255,255,255,0.35)">+${overflow} more</text>`;
-    }
   }
 
   return buildWrapper(
@@ -857,7 +813,7 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
     <line x1="${PAD}" y1="44" x2="${W - PAD}" y2="44" stroke="${theme.border}" stroke-width="1"/>`
         : ""
     }
-    ${cfg.dataFields.signalCount ? `<text x="${PAD}" y="${headerH - 6}" font-family="ui-monospace,monospace" font-size="7" fill="${theme.sub}" letter-spacing="1">${stack.length} SIGNALS</text>` : ""}
+    ${cfg.dataFields.signalCount ? `<text x="${PAD}" y="${headerH - 6}" font-family="ui-monospace,monospace" font-size="7" fill="${theme.sub}" letter-spacing="1">${stack.filter((s) => !s.isIgnored).length} SIGNALS</text>` : ""}
     ${pillsSVG}
     ${cfg.dataFields.footerUrl ? `<text x="${W / 2}" y="${H - 5}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="6" fill="${theme.muted}">stackfingerprint.vercel.app</text>` : ""}
   `
@@ -866,13 +822,10 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Layout: SPLIT ─────────────────────────────────────────────────────────────
-// Two-column card: left panel shows repo name + category breakdown as a
-// text list; right panel shows icon pills. Ideal for portfolio pages or
-// project showcases where prose context matters alongside the tech grid.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
   const W = 680;
-  const DIVX = 220; // x position of the divider line
+  const DIVX = 220;
   const sizeObj = SIZES.find((s) => s.id === cfg.size) ?? SIZES[1];
   const scale = getSafeScale(sizeObj);
   const PH = 24,
@@ -883,7 +836,6 @@ function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
   const TOP_PAD = 20,
     FOOTER_H = 24;
 
-  // ── Right panel rows first — H is driven by whichever panel is taller ──
   const rightW = W - DIVX;
   const rows = layoutPills(
     stack,
@@ -898,12 +850,10 @@ function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
   const rightGridH = rows.length > 0 ? rows.length * (PH + GAP) - GAP : PH;
   const rightContentH = TOP_PAD + rightGridH + FOOTER_H;
 
-  // ── Left panel: repo info + all category rows ───────────────────────────
-  const groups = groupByCategory(stack);
+  // Only group non-ignored for the left panel category summary
+  const groups = groupByCategory(stack.filter((s) => !s.isIgnored));
   const catListH = groups.length * 16;
   const leftContentH = 98 + catListH + FOOTER_H;
-
-  // Card height = tallest panel
   const H = Math.max(rightContentH, leftContentH, 120);
 
   let leftSVG = "";
@@ -914,10 +864,9 @@ function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
     leftSVG += `<text x="20" y="64" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="16" font-weight="700" letter-spacing="-0.2" fill="${theme.title}">${esc(repo)}</text>`;
   }
   if (cfg.dataFields.signalCount) {
-    leftSVG += `<text x="20" y="80" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="1.5">${stack.length} SIGNALS DETECTED</text>`;
+    leftSVG += `<text x="20" y="80" font-family="ui-monospace,monospace" font-size="8" fill="${theme.sub}" letter-spacing="1.5">${stack.filter((s) => !s.isIgnored).length} SIGNALS DETECTED</text>`;
   }
 
-  // All category rows — no slice cap
   let catY = 98;
   groups.forEach(([cat, items]) => {
     const label = CATEGORY_META[cat]?.label ?? cat;
@@ -933,7 +882,6 @@ function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
   }
   leftSVG += `<line x1="${DIVX}" y1="20" x2="${DIVX}" y2="${H - 20}" stroke="${theme.border}" stroke-width="1"/>`;
 
-  // ── Right panel ────────────────────────────────────────────────────────
   let rightSVG = "";
   rows.forEach((row, ri) => {
     let x = DIVX + 14;
@@ -974,9 +922,6 @@ function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Layout: CARDS ─────────────────────────────────────────────────────────────
-// Each technology gets its own mini-card tile with icon + label + category
-// badge. Displayed in a masonry-style grid. Best for a detailed showcase
-// with 6–20 technologies.
 // ══════════════════════════════════════════════════════════════════════════════
 function buildCards(owner, repo, stack, theme, cfg, iconBase64Map) {
   const COLS = 4;
@@ -987,9 +932,7 @@ function buildCards(owner, repo, stack, theme, cfg, iconBase64Map) {
     PAD = 16;
   const ICW = 22;
 
-  // No cap — show all techs, grid expands
   const visible = stack;
-  const overflow = 0;
   const rowCount = Math.ceil(visible.length / COLS);
 
   const W = COLS * (CW + HGAP) - HGAP + PAD * 2;
@@ -1017,35 +960,26 @@ function buildCards(owner, repo, stack, theme, cfg, iconBase64Map) {
     const iconHex = textC.replace("#", "").toLowerCase();
     const catLabel = CATEGORY_META[tech.category]?.label ?? tech.category;
 
-    // Tile background
-    tilesSVG += `<rect x="${tx}" y="${ty}" width="${CW}" height="${CH}" rx="${CR}" fill="${fillColor}" opacity="0.88"/>`;
+    const tileOpacity = tech.isIgnored ? "0.2" : "0.88";
+    const textOpacity = tech.isIgnored ? "0.3" : "1";
+    const strokeAttr = tech.isIgnored
+      ? ` stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-dasharray="4,3"`
+      : "";
 
-    // Icon
+    tilesSVG += `<rect x="${tx}" y="${ty}" width="${CW}" height="${CH}" rx="${CR}" fill="${fillColor}" opacity="${tileOpacity}"${strokeAttr}/>`;
+
     if (cfg.iconStyle !== "none" && tech.iconSlug) {
       const href = resolveIcon(tech.iconSlug, iconHex, iconBase64Map);
       if (href) {
-        tilesSVG += `<image href="${href}" x="${tx + 10}" y="${ty + (CH - ICW) / 2}" width="${ICW}" height="${ICW}"/>`;
+        tilesSVG += `<image href="${href}" x="${tx + 10}" y="${ty + (CH - ICW) / 2}" width="${ICW}" height="${ICW}" opacity="${tech.isIgnored ? "0.3" : "1"}"/>`;
       }
     }
 
-    // Tech name
     const nameX =
       cfg.iconStyle !== "none" && tech.iconSlug ? tx + 10 + ICW + 7 : tx + 10;
-    tilesSVG += `<text x="${nameX}" y="${ty + CH / 2 - 4}" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="10" font-weight="700" fill="${textC}">${esc(tech.label)}</text>`;
-
-    // Category badge
-    tilesSVG += `<text x="${nameX}" y="${ty + CH / 2 + 9}" font-family="ui-monospace,monospace" font-size="7" fill="${textC}" opacity="0.6">${esc(catLabel.toUpperCase())}</text>`;
+    tilesSVG += `<text x="${nameX}" y="${ty + CH / 2 - 4}" font-family="'Geist Mono','JetBrains Mono',ui-monospace,monospace" font-size="10" font-weight="700" fill="${textC}" opacity="${textOpacity}">${esc(tech.label)}</text>`;
+    tilesSVG += `<text x="${nameX}" y="${ty + CH / 2 + 9}" font-family="ui-monospace,monospace" font-size="7" fill="${textC}" opacity="${tech.isIgnored ? "0.2" : "0.6"}">${esc(catLabel.toUpperCase())}</text>`;
   });
-
-  // Overflow tile
-  if (overflow > 0 && cfg.dataFields.overflowBadge) {
-    const col = visible.length % COLS;
-    const row = Math.floor(visible.length / COLS);
-    const tx = PAD + col * (CW + HGAP);
-    const ty = headerH + PAD + row * (CH + VGAP);
-    tilesSVG += `<rect x="${tx}" y="${ty}" width="${CW}" height="${CH}" rx="${CR}" fill="rgba(255,255,255,0.05)" stroke="${theme.border}" stroke-width="1"/>`;
-    tilesSVG += `<text x="${tx + CW / 2}" y="${ty + CH / 2 + 4}" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" fill="rgba(255,255,255,0.3)">+${overflow}</text>`;
-  }
 
   return buildWrapper(
     W,
@@ -1133,24 +1067,24 @@ export function buildSVG(owner, repo, stack, cfg, iconBase64Map = null) {
 
   if (cfg.layout === "terminal") cfg.accentLine = "none";
 
-  // Apply category filter
+  // Apply category filter — but preserve isIgnored pills if showIgnored is on
   let filteredStack = stack;
   if (cfg.categoryFilter !== "all") {
     const filter = CATEGORY_FILTERS.find((f) => f.id === cfg.categoryFilter);
     if (filter) {
-      // include-list filter
-      if (filter.include) {
-        filteredStack = stack.filter((t) =>
-          filter.include.includes(t.category)
-        );
-      }
-      // prodonly: hide dev-only signals
-      if (filter.devOnly === false) {
-        filteredStack = filteredStack.filter((t) => !t.isDevOnly);
-      }
-      // top: cap at maxItems after category filter
+      filteredStack = stack.filter((t) => {
+        // Always pass-through ignored-ghost pills when showIgnored is on
+        if (t.isIgnored) return true;
+        if (filter.include && !filter.include.includes(t.category))
+          return false;
+        if (filter.devOnly === false && t.isDevOnly) return false;
+        return true;
+      });
+      // top: cap non-ignored at maxItems
       if (filter.maxItems) {
-        filteredStack = filteredStack.slice(0, filter.maxItems);
+        const nonIgnored = filteredStack.filter((t) => !t.isIgnored);
+        const ignored = filteredStack.filter((t) => t.isIgnored);
+        filteredStack = [...nonIgnored.slice(0, filter.maxItems), ...ignored];
       }
     }
   }
