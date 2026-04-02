@@ -295,68 +295,7 @@ The Action fetches the SVG at CI time on GitHub's own infrastructure, validates 
 
 ### Full workflow file
 
-```yaml
-name: Update Stack Fingerprint
-
-on:
-  push:
-    branches: [main]
-  schedule:
-    - cron: "0 3 * * 1"
-  workflow_dispatch:
-    inputs:
-      theme:
-        description: Card theme
-        default: ocean
-      layout:
-        description: Card layout
-        default: classic
-      size:
-        description: Card size (sm / md / lg)
-        default: md
-      path:
-        description: Sub-path to scan (leave blank for root)
-        default: ""
-
-jobs:
-  update-card:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Fetch Stack Fingerprint SVG
-        run: |
-          REPO="${{ github.repository }}"
-          THEME="${{ inputs.theme || 'ocean' }}"
-          LAYOUT="${{ inputs.layout || 'classic' }}"
-          SIZE="${{ inputs.size || 'md' }}"
-          PATH_PARAM="${{ inputs.path }}"
-
-          URL="https://stackfingerprint.vercel.app/api/card?repo=${REPO}&theme=${THEME}&layout=${LAYOUT}&size=${SIZE}"
-          [ -n "$PATH_PARAM" ] && URL="${URL}&path=${PATH_PARAM}"
-
-          mkdir -p assets
-          HTTP_CODE=$(curl -s -o assets/stack-fingerprint.svg -w "%{http_code}" "$URL")
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "API returned HTTP $HTTP_CODE — aborting." && exit 1
-          fi
-
-          if ! grep -q "<svg" assets/stack-fingerprint.svg; then
-            echo "Response does not look like an SVG — aborting." && exit 1
-          fi
-
-      - name: Commit if changed
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add assets/stack-fingerprint.svg
-          git diff --cached --quiet || git commit -m "chore: update stack fingerprint card"
-          git push
-```
+check the workflow file here: [Workflow](https://github.com/mattqdev/stackfingerprint/blob/main/.github/workflows/stack-fingerprint.yml)
 
 ### Behaviour
 
@@ -425,6 +364,8 @@ To avoid rate-limiting on busy instances, set a `GITHUB_TOKEN` with read-only pu
 ```env
 GITHUB_TOKEN=ghp_...
 ```
+
+check `.env.example` file for the reference.
 
 ---
 

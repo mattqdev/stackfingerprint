@@ -6,10 +6,7 @@ Zero auth. Zero config. Paste a repo, get a badge.
 
 [![Live Demo](https://img.shields.io/badge/try%20it-stackfingerprint.vercel.app-33ff33?&color=00ba10)](https://stackfingerprint.vercel.app)
 [![Stars](https://img.shields.io/github/stars/mattqdev/stackfingerprint?style=social)](https://github.com/mattqdev/stackfingerprint)
-[![Deploy with Vercel](https://img.shields.io/badge/deploy-vercel-000?logo=vercel)](https://vercel.com/new/clone?repository-url=https://github.com/mattqdev/stackfingerprint)
 [![License: MIT](https://img.shields.io/badge/license-MIT-33ff33)](https://github.com/mattqdev/stackfingerprint/blob/main/LICENSE)
-
-> ⚠️ **Self-hosting recommended for production use.** See [Supply-chain safety](#-supply-chain-safety--self-hosting) below.
 
 ---
 
@@ -28,106 +25,8 @@ You don't need to touch a line of code to get the perfect look. The **Interactiv
 
 [**Try the Visual Builder →**](https://stackfingerprint.vercel.app)
 
----
-
-## 🚀 How it works
-
-Stack Fingerprint deep-scans any public GitHub repository via the Contents API — reading lockfiles, config files, and directory structures — to detect the frameworks, runtimes, and tooling in use.
-
-- **70+ detection signals** — languages, frameworks, bundlers, test runners, CI, linters, infra
-- **Real brand icons** — inlined as base64 at render time, fully CSP-safe
-- **Zero configuration** — no tokens, no environment variables, no friction
-- **Dev vs prod awareness** — signals detected in `devDependencies` are flagged and visually dimmed so your production stack stays front and centre
-
----
-
-## 🛡 Supply-chain safety & self-hosting
-
-Embedding an image from a third-party domain (`stackfingerprint.vercel.app`) in a high-profile README introduces supply-chain risk: the domain owner can change what the URL serves at any time. **The recommended approach is to commit the SVG directly to your repository so it is served from GitHub's own CDN.**
-
-The easiest way to do this is with the included GitHub Action.
-
-### GitHub Action (recommended)
-
-Drop `.github/workflows/stack-fingerprint.yml` into your repo:
-
-```yaml
-name: Update Stack Fingerprint
-
-on:
-  push:
-    branches: [main]
-  schedule:
-    - cron: "0 3 * * 1" # weekly on Monday at 03:00 UTC
-  workflow_dispatch:
-    inputs:
-      theme:
-        description: Card theme
-        default: ocean
-      layout:
-        description: Card layout
-        default: classic
-      size:
-        description: Card size (sm / md / lg)
-        default: md
-      path:
-        description: Sub-path to scan (leave blank for root)
-        default: ""
-
-jobs:
-  update-card:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Fetch Stack Fingerprint SVG
-        run: |
-          REPO="${{ github.repository }}"
-          THEME="${{ inputs.theme || 'ocean' }}"
-          LAYOUT="${{ inputs.layout || 'classic' }}"
-          SIZE="${{ inputs.size || 'md' }}"
-          PATH_PARAM="${{ inputs.path }}"
-
-          URL="https://stackfingerprint.vercel.app/api/card?repo=${REPO}&theme=${THEME}&layout=${LAYOUT}&size=${SIZE}"
-          [ -n "$PATH_PARAM" ] && URL="${URL}&path=${PATH_PARAM}"
-
-          HTTP_CODE=$(curl -s -o assets/stack-fingerprint.svg -w "%{http_code}" "$URL")
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "API returned HTTP $HTTP_CODE — aborting." && exit 1
-          fi
-
-          if ! grep -q "<svg" assets/stack-fingerprint.svg; then
-            echo "Response does not look like an SVG — aborting." && exit 1
-          fi
-
-      - name: Commit if changed
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add assets/stack-fingerprint.svg
-          git diff --cached --quiet || git commit -m "chore: update stack fingerprint card"
-          git push
-```
-
-Then reference the committed file in your README:
-
-```markdown
-![Stack Fingerprint](./assets/stack-fingerprint.svg)
-```
-
-The SVG is now served from `raw.githubusercontent.com` — GitHub's own CDN — with no runtime dependency on `stackfingerprint.vercel.app`.
-
-### Deploy your own instance
-
-For complete control, deploy a private instance in one click:
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mattqdev/stackfingerprint)
-
-Point the Action's `URL` at your own domain and you own the entire pipeline.
+<img src="./public/StackFingerprintThumb.png"/>
+<img src="./public/StackFingerprintThumb2.png"/>
 
 ---
 
@@ -144,6 +43,18 @@ Customise with query parameters (see [API reference](./DOCS.md#api-reference)):
 ```markdown
 ![Stack Fingerprint](https://stackfingerprint.vercel.app/api/card?repo=vercel/next.js&theme=ocean&layout=classic&size=lg&categoryFilter=prodonly)
 ```
+
+---
+
+## 🔴 Common Problems
+
+The community reported these most common problems, we have decided to fix all:
+| ❌ Problem | ✅ Fix |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The embed is from an uncontrolled third-party domain | Host it yourself easily with Vercel or just paste `.github/workflows/stack-fingerprint.yml` in your repo (recommended) |
+| Some of the stacks detected are unused/false positive/insignificant | You can choose to show: Top 5 stacks, Core only, Prod only etc; If this isn't enough you can decide to exclude singular stacks with `"ignore"` in `.stackfingerprint.json` |
+| Full-repo scan surfaces signals from unrelated sub-projects | `?path=` query parameter scans a specific sub-directory; |
+| Long signal lists discourage contributors and misrepresent the actual stack | `categoryFilter=prodonly` hides all dev signals; `categoryFilter=top` shows only `lang` + `framework`, capped at 5; dev-only signals visually dimmed even in `all` mode. You have the **FULL CONTROL** of **WHAT TO SHOW**. |
 
 ---
 
@@ -168,6 +79,36 @@ Drop a `.stackfingerprint.json` file at your repo root (or at the sub-path you a
 | `path`   | `string`   | Default sub-path for monorepo scans (overridden by the `?path=` query param) |
 
 See [DOCS.md → Configuration file](./DOCS.md#configuration-file-stackfingerprintjson) for the full schema.
+
+---
+
+## 🛡 Supply-chain safety & self-hosting
+
+> ⚠️ **Self-hosting recommended for production use.** See [Supply-chain safety](#-supply-chain-safety--self-hosting) below.
+
+Embedding an image from a third-party domain (`stackfingerprint.vercel.app`) in a high-profile README introduces supply-chain risk: the domain owner can change what the URL serves at any time. **The recommended approach is to commit the SVG directly to your repository so it is served from GitHub's own CDN.**
+
+The easiest way to do this is with the included GitHub Action.
+
+### GitHub Action (recommended)
+
+Drop `.github/workflows/stack-fingerprint.yml` into your repo:
+
+Then reference the committed file in your README:
+
+```markdown
+![Stack Fingerprint](./assets/stack-fingerprint.svg)
+```
+
+The SVG is now served from `raw.githubusercontent.com` — GitHub's own CDN — with no runtime dependency on `stackfingerprint.vercel.app`.
+
+### Deploy your own instance
+
+For complete control, deploy a private instance in one click:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mattqdev/stackfingerprint)
+
+Point the Action's `URL` at your own domain and you own the entire pipeline.
 
 ---
 
@@ -203,19 +144,6 @@ The `path` parameter is also accepted by the GitHub Action as a `workflow_dispat
 | `all`      | Every detected signal; dev-only signals are dimmed at 55 % opacity                       |
 | `prodonly` | Production signals only — all `devDependencies`-sourced signals are hidden               |
 | `top`      | Only `lang` + `framework` categories, capped at 5 signals — the minimal meaningful badge |
-
----
-
-## 🐛 Known issues addressed
-
-The table below maps the community feedback that shaped these features to the fix that was shipped:
-
-| #   | Problem                                                                                                | Root cause                                                 | Fix                                                                                                                                                                        |
-| --- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **Supply-chain risk** — README embeds an SVG from an uncontrolled third-party domain                   | Image served at runtime from `stackfingerprint.vercel.app` | GitHub Action that fetches & commits the SVG to the repo; README then uses a relative path served from GitHub CDN                                                          |
-| 2   | **False positives** — build tools, linters, and test frameworks appear alongside the production stack  | `detect.js` treated all dependencies equally               | `devDependencies` vs `dependencies` awareness; 30+ signals hard-coded as inherently dev-only; `isDevOnly` flag + visual dimming; `ignore` list in `.stackfingerprint.json` |
-| 3   | **Monorepo noise** — full-repo scan surfaces signals from unrelated sub-projects                       | API always scanned from the repository root                | `?path=` query parameter scans a specific sub-directory; supported in the Action and in `.stackfingerprint.json`                                                           |
-| 4   | **Information overload** — long signal lists discourage contributors and misrepresent the actual stack | No filtering beyond categories                             | `categoryFilter=prodonly` hides all dev signals; `categoryFilter=top` shows only `lang` + `framework`, capped at 5; dev-only signals visually dimmed even in `all` mode    |
 
 ---
 

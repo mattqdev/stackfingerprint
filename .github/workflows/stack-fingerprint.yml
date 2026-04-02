@@ -27,6 +27,9 @@
 #   path:      (monorepo) sub-directory to scan, e.g. "apps/web"
 #   output:    path inside the repo where the SVG is saved
 # ─────────────────────────────────────────────────────────────────────────────
+#
+# By @mattqdev — [stackfingerprint.vercel.app](https://stackfingerprint.vercel.app) — MIT License
+# GitHub: https://github.com/mattqdev/stackfingerprint
 
 name: Stack Fingerprint
 
