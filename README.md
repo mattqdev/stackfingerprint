@@ -1,12 +1,18 @@
-# 🔍 Stack Fingerprint
+<div align="center">
 
-**Scan any public GitHub repo and generate a beautiful, embeddable SVG card of its tech stack.**
+# Stack Fingerprint 🔍
 
-Zero auth. Zero config. Paste a repo, get a badge.
+<img src="./assets/Banner.png" alt="Stack Fingerprint banner"/>
 
 [![Live Demo](https://img.shields.io/badge/try%20it-stackfingerprint.vercel.app-33ff33?&color=00ba10)](https://stackfingerprint.vercel.app)
 [![Stars](https://img.shields.io/github/stars/mattqdev/stackfingerprint?style=social)](https://github.com/mattqdev/stackfingerprint)
 [![License: MIT](https://img.shields.io/badge/license-MIT-33ff33)](https://github.com/mattqdev/stackfingerprint/blob/main/LICENSE)
+
+</div>
+
+**Scan any public GitHub repo and generate a beautiful, embeddable SVG card of its tech stack.**
+
+Zero auth. Zero config. Paste a repo, get a badge.
 
 ---
 
