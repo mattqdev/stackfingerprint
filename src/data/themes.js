@@ -1,6 +1,43 @@
 // src/data/themes.js
 
 export const THEMES = {
+  // ── Brand themes (Brand Manual · 03 Color / 05 Stack card) ────────────────
+  // Card Night surface, thick stroke in the theme accent, larger radius.
+  signal: {
+    label: "Signal",
+    emoji: "🟩",
+    bg1: "#091a0c",
+    bg2: "#091a0c",
+    border: "rgba(42,155,0,0.35)",
+    stroke: "#2a9b00",
+    strokeWidth: 3,
+    radius: 20,
+    title: "#ffffff",
+    owner: "#35a65f",
+    slash: "#1e5c34",
+    sub: "#35a65f",
+    muted: "#1f4a27",
+    accent: "#35a65f",
+    shimmer: "rgba(54,198,0,0.03)",
+  },
+  embernight: {
+    label: "Ember Night",
+    emoji: "🟧",
+    bg1: "#180c04",
+    bg2: "#180c04",
+    border: "rgba(155,90,0,0.35)",
+    stroke: "#9b5a00",
+    strokeWidth: 3,
+    radius: 20,
+    title: "#ffffff",
+    owner: "#c47f24",
+    slash: "#5c3505",
+    sub: "#c47f24",
+    muted: "#4a2c0c",
+    accent: "#c47f24",
+    shimmer: "rgba(155,90,0,0.04)",
+  },
+
   // ── Existing themes ────────────────────────────────────────────────────────
   midnight: {
     label: "Midnight",

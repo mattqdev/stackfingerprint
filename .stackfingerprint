@@ -3,7 +3,7 @@
   "ignore": [
     "husky",
     "npm",
-    "actions"
+    "github-actions"
   ],
   "pin": [
     "nextjs",

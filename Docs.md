@@ -241,30 +241,32 @@ Drop this file at the root of your repository (or at the sub-path you are scanni
 
 ## Themes
 
-20 themes are available. The `card.theme` config key and the `?theme=` query parameter accept any of the IDs in the first column.
+22 themes are available. The `card.theme` config key and the `?theme=` query parameter accept any of the IDs in the first column.
 
-| Theme ID    | Emoji | Style | Character                                        |
-| ----------- | ----- | ----- | ------------------------------------------------ |
-| `midnight`  | 🌑    | Dark  | Deep blue-black with indigo accent — the default |
-| `arctic`    | 🧊    | Light | Cool indigo-white with periwinkle border         |
-| `forest`    | 🌲    | Dark  | Near-black green with bright green accent        |
-| `ember`     | 🔥    | Dark  | Near-black brown with orange accent              |
-| `ocean`     | 🌊    | Dark  | Deep navy with electric cyan                     |
-| `obsidian`  | 🪨    | Dark  | Pure dark charcoal with silver/grey              |
-| `sakura`    | 🌸    | Dark  | Dark plum-rose with pink accent                  |
-| `golden`    | ✨    | Dark  | Dark brown with gold/amber accent                |
-| `rose`      | 🌹    | Light | Pale rose-white with crimson accent              |
-| `nord`      | ❄️    | Dark  | Arctic blue-grey with teal accent                |
-| `nebula`    | 🔭    | Dark  | Near-black purple with violet accent             |
-| `parchment` | 📜    | Light | Warm cream with brown leather tones              |
-| `matrix`    | 👾    | Dark  | Pure black with neon green — hacker terminal     |
-| `lavender`  | 💜    | Light | Soft lavender white with purple accent           |
-| `sunset`    | 🌅    | Dark  | Near-black with coral/rose accent                |
-| `dracula`   | 🧛    | Dark  | Classic Dracula dark grey with purple            |
-| `cyber`     | ⚡    | Dark  | Deep dark blue with electric yellow              |
-| `monokai`   | 🎨    | Dark  | Warm dark grey with lime green accent            |
-| `slate`     | 🩶    | Light | Cool blue-grey white with dark slate             |
-| `abyss`     | 🌀    | Dark  | Very deep teal-black with aqua accent            |
+| Theme ID     | Emoji | Style | Character                                          |
+| ------------ | ----- | ----- | -------------------------------------------------- |
+| `signal`     | 🟩    | Dark  | Brand theme — Card Night with Circuit Green stroke |
+| `embernight` | 🟧    | Dark  | Brand alt — Ember Night with Ember stroke          |
+| `midnight`   | 🌑    | Dark  | Deep blue-black with indigo accent — the default   |
+| `arctic`     | 🧊    | Light | Cool indigo-white with periwinkle border           |
+| `forest`     | 🌲    | Dark  | Near-black green with bright green accent          |
+| `ember`      | 🔥    | Dark  | Near-black brown with orange accent                |
+| `ocean`      | 🌊    | Dark  | Deep navy with electric cyan                       |
+| `obsidian`   | 🪨    | Dark  | Pure dark charcoal with silver/grey                |
+| `sakura`     | 🌸    | Dark  | Dark plum-rose with pink accent                    |
+| `golden`     | ✨    | Dark  | Dark brown with gold/amber accent                  |
+| `rose`       | 🌹    | Light | Pale rose-white with crimson accent                |
+| `nord`       | ❄️    | Dark  | Arctic blue-grey with teal accent                  |
+| `nebula`     | 🔭    | Dark  | Near-black purple with violet accent               |
+| `parchment`  | 📜    | Light | Warm cream with brown leather tones                |
+| `matrix`     | 👾    | Dark  | Pure black with neon green — hacker terminal       |
+| `lavender`   | 💜    | Light | Soft lavender white with purple accent             |
+| `sunset`     | 🌅    | Dark  | Near-black with coral/rose accent                  |
+| `dracula`    | 🧛    | Dark  | Classic Dracula dark grey with purple              |
+| `cyber`      | ⚡    | Dark  | Deep dark blue with electric yellow                |
+| `monokai`    | 🎨    | Dark  | Warm dark grey with lime green accent              |
+| `slate`      | 🩶    | Light | Cool blue-grey white with dark slate               |
+| `abyss`      | 🌀    | Dark  | Very deep teal-black with aqua accent              |
 
 Themes can be previewed in the [Visual Builder](https://stackfingerprint.vercel.app).
 

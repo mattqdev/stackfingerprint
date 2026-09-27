@@ -11,61 +11,31 @@ import {
 } from "../data/cardOptions";
 import { THEMES } from "../data/themes";
 
-const G = "#33ff33";
-const FONT = "'JetBrains Mono', monospace";
-
-function Section({ title, children }) {
+function Group({ title, hint, children }) {
   return (
-    <div style={{ marginBottom: "24px" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          fontSize: "9px",
-          letterSpacing: "3px",
-          textTransform: "uppercase",
-          color: "rgba(51,255,51,0.35)",
-          paddingBottom: "8px",
-          marginBottom: "12px",
-          borderBottom: "1px solid rgba(51,255,51,0.08)",
-          fontFamily: FONT,
-        }}
-      >
-        <span style={{ color: G }}>—</span> {title}
+    <div className="sf-cfg-group">
+      <div className="sf-cfg-title">
+        <span className="sf-label">{title}</span>
+        {hint && <span className="hint">{hint}</span>}
       </div>
       {children}
     </div>
   );
 }
 
-function PillGroup({ options, value, onChange, renderLabel }) {
+function Segmented({ options, value, onChange }) {
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+    <div className="sf-seg" role="radiogroup">
       {options.map((opt) => (
         <button
           key={opt.id}
+          role="radio"
+          aria-checked={value === opt.id}
           onClick={() => onChange(opt.id)}
           title={opt.desc}
-          style={{
-            padding: "6px 14px",
-            fontSize: "10px",
-            fontFamily: FONT,
-            cursor: "pointer",
-            transition: "all 0.15s",
-            letterSpacing: "1px",
-            border:
-              value === opt.id
-                ? "1px solid rgba(51,255,51,0.55)"
-                : "1px solid rgba(51,255,51,0.12)",
-            background:
-              value === opt.id ? "rgba(51,255,51,0.08)" : "transparent",
-            color: value === opt.id ? G : "rgba(51,255,51,0.4)",
-            textShadow:
-              value === opt.id ? "0 0 6px rgba(51,255,51,0.4)" : "none",
-          }}
+          className={`sf-opt ${value === opt.id ? "is-on" : ""}`}
         >
-          {renderLabel ? renderLabel(opt) : opt.label.toUpperCase()}
+          {opt.label}
         </button>
       ))}
     </div>
@@ -74,56 +44,15 @@ function PillGroup({ options, value, onChange, renderLabel }) {
 
 function Toggle({ checked, onChange, label }) {
   return (
-    <div
+    <button
+      role="switch"
+      aria-checked={checked}
       onClick={() => onChange(!checked)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "12px",
-        padding: "5px 0",
-        cursor: "pointer",
-      }}
+      className={`sf-toggle ${checked ? "is-on" : ""}`}
     >
-      {/* Track */}
-      <div
-        style={{
-          position: "relative",
-          width: "28px",
-          height: "16px",
-          flexShrink: 0,
-          border: checked
-            ? "1px solid rgba(51,255,51,0.6)"
-            : "1px solid rgba(51,255,51,0.15)",
-          background: checked ? "rgba(51,255,51,0.08)" : "transparent",
-          transition: "all 0.2s",
-        }}
-      >
-        {/* Thumb */}
-        <div
-          style={{
-            position: "absolute",
-            top: "2px",
-            left: checked ? "12px" : "2px",
-            width: "10px",
-            height: "10px",
-            background: checked ? G : "rgba(51,255,51,0.25)",
-            boxShadow: checked ? "0 0 6px rgba(51,255,51,0.6)" : "none",
-            transition: "all 0.2s",
-          }}
-        />
-      </div>
-      <span
-        style={{
-          fontSize: "10px",
-          fontFamily: FONT,
-          letterSpacing: "1px",
-          textTransform: "uppercase",
-          color: checked ? "rgba(51,255,51,0.7)" : "rgba(51,255,51,0.3)",
-        }}
-      >
-        {label}
-      </span>
-    </div>
+      {label}
+      <span className="track" aria-hidden="true" />
+    </button>
   );
 }
 
@@ -133,201 +62,107 @@ export default function CardConfigurator({ cfg, onChange }) {
     onChange({ ...cfg, dataFields: { ...cfg.dataFields, [key]: val } });
 
   return (
-    <div style={{ fontFamily: FONT }}>
-      <Section title="Layout">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-            gap: "8px",
-          }}
-        >
+    <div>
+      <Group
+        title="Layout"
+        hint={LAYOUTS.find((l) => l.id === cfg.layout)?.label}
+      >
+        <div className="sf-layouts" role="radiogroup">
           {LAYOUTS.map((l) => (
             <button
               key={l.id}
+              role="radio"
+              aria-checked={cfg.layout === l.id}
               onClick={() => set("layout", l.id)}
-              style={{
-                textAlign: "left",
-                padding: "12px",
-                cursor: "pointer",
-                transition: "all 0.15s",
-                border:
-                  cfg.layout === l.id
-                    ? "1px solid rgba(51,255,51,0.5)"
-                    : "1px solid rgba(51,255,51,0.1)",
-                background:
-                  cfg.layout === l.id ? "rgba(51,255,51,0.06)" : "transparent",
-                fontFamily: FONT,
-              }}
+              className={`sf-layout ${cfg.layout === l.id ? "is-on" : ""}`}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  marginBottom: "4px",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "12px",
-                    color: cfg.layout === l.id ? G : "rgba(51,255,51,0.3)",
-                  }}
-                >
-                  {l.icon}
-                </span>
-                <span
-                  style={{
-                    fontSize: "10px",
-                    fontWeight: 700,
-                    letterSpacing: "1px",
-                    color: cfg.layout === l.id ? G : "rgba(51,255,51,0.5)",
-                  }}
-                >
-                  {l.label.toUpperCase()}
-                </span>
-              </div>
-              <div
-                style={{
-                  fontSize: "9px",
-                  lineHeight: "1.4",
-                  color: "rgba(51,255,51,0.3)",
-                }}
-              >
-                {l.desc}
-              </div>
+              <span className="ico" aria-hidden="true">
+                {l.icon}
+              </span>
+              <span className="name">{l.label}</span>
+              <span className="desc">{l.desc}</span>
             </button>
           ))}
         </div>
-      </Section>
+      </Group>
 
-      <Section title="Theme">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))",
-            gap: "6px",
-            marginBottom: "8px",
-          }}
-        >
+      <Group title="Theme" hint={THEMES[cfg.theme]?.label}>
+        <div className="sf-themes" role="radiogroup">
           {Object.entries(THEMES).map(([id, t]) => (
             <button
               key={id}
+              role="radio"
+              aria-checked={cfg.theme === id}
               onClick={() => set("theme", id)}
               title={t.label}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 4px",
-                cursor: "pointer",
-                transition: "all 0.15s",
-                fontFamily: FONT,
-                border:
-                  cfg.theme === id
-                    ? "1px solid rgba(51,255,51,0.5)"
-                    : "1px solid rgba(51,255,51,0.1)",
-                background:
-                  cfg.theme === id ? "rgba(51,255,51,0.04)" : "transparent",
-              }}
+              className={`sf-theme ${cfg.theme === id ? "is-on" : ""}`}
             >
-              <div
-                style={{
-                  width: "36px",
-                  height: "18px",
-                  background: `linear-gradient(135deg, ${t.bg1}, ${t.bg2})`,
-                  border: `1px solid ${t.border}`,
-                }}
-              >
-                <div
-                  style={{
-                    width: "100%",
-                    height: "3px",
-                    background: t.accent,
-                    marginTop: "6px",
-                  }}
-                />
-              </div>
               <span
+                className="sw"
                 style={{
-                  fontSize: "8px",
-                  letterSpacing: "1px",
-                  color: cfg.theme === id ? G : "rgba(51,255,51,0.3)",
+                  background: `linear-gradient(135deg, ${t.bg1}, ${t.bg2})`,
+                  boxShadow: `inset 0 0 0 ${t.strokeWidth ? 2 : 1}px ${t.stroke ?? t.border}`,
                 }}
               >
-                {t.label.slice(0, 6).toUpperCase()}
+                <i style={{ background: t.accent }} />
+                <b style={{ background: t.title }} />
               </span>
+              <span className="nm">{t.label}</span>
             </button>
           ))}
         </div>
-        <div
-          style={{
-            fontSize: "10px",
-            color: "rgba(51,255,51,0.35)",
-            marginTop: "4px",
-          }}
-        >
-          {THEMES[cfg.theme]?.label ?? ""}
-        </div>
-      </Section>
+      </Group>
 
-      <Section title="Size">
-        <PillGroup
+      <Group title="Size">
+        <Segmented
           options={SIZES}
           value={cfg.size}
           onChange={(v) => set("size", v)}
         />
-      </Section>
+      </Group>
 
-      <Section title="Icon Style">
-        <PillGroup
+      <Group title="Icon style">
+        <Segmented
           options={ICON_STYLES}
           value={cfg.iconStyle}
           onChange={(v) => set("iconStyle", v)}
         />
-      </Section>
+      </Group>
 
-      <Section title="Pill Shape">
-        <PillGroup
+      <Group title="Pill shape">
+        <Segmented
           options={PILL_SHAPES}
           value={cfg.pillShape}
           onChange={(v) => set("pillShape", v)}
         />
-      </Section>
+      </Group>
 
-      <Section title="Categories">
-        <PillGroup
+      <Group title="Categories">
+        <Segmented
           options={CATEGORY_FILTERS}
           value={cfg.categoryFilter}
           onChange={(v) => set("categoryFilter", v)}
         />
-      </Section>
+      </Group>
 
-      <Section title="Accent Line">
-        <PillGroup
+      <Group title="Accent line">
+        <Segmented
           options={ACCENT_LINES}
           value={cfg.accentLine}
           onChange={(v) => set("accentLine", v)}
         />
-      </Section>
+      </Group>
 
-      <Section title="Background">
-        <PillGroup
+      <Group title="Background">
+        <Segmented
           options={BG_DECORATIONS}
           value={cfg.bgDecoration}
           onChange={(v) => set("bgDecoration", v)}
         />
-      </Section>
+      </Group>
 
-      <Section title="Fields">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "4px",
-          }}
-        >
+      <Group title="Fields">
+        <div className="sf-toggles">
           {DATA_FIELDS.map((f) => (
             <Toggle
               key={f.id}
@@ -337,7 +172,7 @@ export default function CardConfigurator({ cfg, onChange }) {
             />
           ))}
         </div>
-      </Section>
+      </Group>
     </div>
   );
 }

@@ -1,4 +1,24 @@
+import { Dela_Gothic_One, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+const dela = Dela_Gothic_One({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-dela",
+});
+
+const jetbrains = JetBrains_Mono({
+  weight: ["400", "500", "700"],
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jetbrains",
+});
+
+export const viewport = {
+  themeColor: "#000000",
+  colorScheme: "dark",
+};
 
 export const metadata = {
   metadataBase: new URL("https://stackfingerprint.vercel.app"),
@@ -51,15 +71,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-      </head>
+    <html lang="en" className={`${dela.variable} ${jetbrains.variable}`}>
       <body>{children}</body>
     </html>
   );

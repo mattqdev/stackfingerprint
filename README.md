@@ -11,6 +11,7 @@ Zero auth. Zero config. Paste a repo, get a badge.
 ---
 
 ![Stack Fingerprint card for this repo](./assets/stack-fingerprint.svg)
+![Stack Fingerprint card for this repo](https://stackfingerprint.vercel.app/api/card)
 
 ---
 

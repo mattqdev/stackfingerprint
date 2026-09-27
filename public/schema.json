@@ -88,6 +88,8 @@
           "description": "The named colour palette applied to the card background, border, text, and pill chrome. Does not affect signal detection.",
           "type": "string",
           "enum": [
+            "signal",
+            "embernight",
             "midnight",
             "arctic",
             "forest",

@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Placet local server discovery file (port + secret token) — do not commit
+.placet/

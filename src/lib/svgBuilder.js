@@ -1023,6 +1023,8 @@ function buildWrapper(
     typeof scale === "number" && isFinite(scale) && scale > 0 ? scale : 1;
   const sW = Math.round(W * safeScale);
   const sH = Math.round(H * safeScale);
+  const radius = theme.radius ?? 14;
+  const sw = theme.strokeWidth ?? 0;
 
   const bgParts = bgDecorationParts(cfg.bgDecoration, W, H, theme.accent);
   const accParts =
@@ -1039,7 +1041,7 @@ function buildWrapper(
       <stop offset="0%" stop-color="${theme.shimmer}"/>
       <stop offset="100%" stop-color="transparent"/>
     </linearGradient>`,
-    `<clipPath id="card"><rect width="${W}" height="${H}" rx="14"/></clipPath>`,
+    `<clipPath id="card"><rect width="${W}" height="${H}" rx="${radius}"/></clipPath>`,
     bgParts.defs,
     accParts.defs,
   ]
@@ -1054,7 +1056,11 @@ function buildWrapper(
     <rect width="${W}" height="${H}" fill="url(#bg)"/>
     <rect width="${W}" height="${H}" fill="url(#shimmer)"/>
     ${bgParts.body}
-    <rect width="${W}" height="${H}" fill="none" stroke="${theme.border}" stroke-width="1"/>
+    ${
+      sw
+        ? `<rect x="${sw / 2}" y="${sw / 2}" width="${W - sw}" height="${H - sw}" rx="${radius - sw / 2}" fill="none" stroke="${theme.stroke}" stroke-width="${sw}"/>`
+        : `<rect width="${W}" height="${H}" fill="none" stroke="${theme.border}" stroke-width="1"/>`
+    }
     ${accParts.body}
     ${innerSVG}
   </g>
