@@ -21,6 +21,7 @@ import Showcase from "../components/Showcase";
 
 const GITHUB_REPO = "https://github.com/mattqdev/stackfingerprint";
 const DOCS_URL = `${GITHUB_REPO}/blob/main/Docs.md`;
+const ACTION_URL = "https://github.com/marketplace/actions/stack-fingerprint";
 
 // The site opens on the brand card theme; the API default is unchanged.
 const SITE_DEFAULT = { ...DEFAULT_CONFIG, theme: "signal" };
@@ -136,6 +137,14 @@ function Nav() {
         <div className="sf-nav-links">
           <a className="sf-nav-link hide-sm" href="#how">
             How it works
+          </a>
+          <a
+            className="sf-nav-link hide-sm"
+            href={ACTION_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Action
           </a>
           <a
             className="sf-nav-link hide-sm"
@@ -256,7 +265,7 @@ function HowItWorks() {
     {
       title: "Embed",
       cmd: "--output markdown,html",
-      body: "Copy the snippet and drop it into your README. It stays in sync.",
+      body: "Copy the snippet into your README, or let the GitHub Action commit the card for you. It stays in sync.",
     },
   ];
   return (
@@ -346,6 +355,9 @@ function Footer() {
             </a>
             <a href={DOCS_URL} target="_blank" rel="noopener noreferrer">
               Docs
+            </a>
+            <a href={ACTION_URL} target="_blank" rel="noopener noreferrer">
+              GitHub Action
             </a>
             <a
               href={`${GITHUB_REPO}/issues/new/choose`}

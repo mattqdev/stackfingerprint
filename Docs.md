@@ -241,10 +241,11 @@ Drop this file at the root of your repository (or at the sub-path you are scanni
 
 ## Themes
 
-22 themes are available. The `card.theme` config key and the `?theme=` query parameter accept any of the IDs in the first column.
+23 themes are available. The `card.theme` config key and the `?theme=` query parameter accept any of the IDs in the first column.
 
 | Theme ID     | Emoji | Style | Character                                          |
 | ------------ | ----- | ----- | -------------------------------------------------- |
+| `scanner`    | ⬛    | Dark  | Site look — pure black, signal glow, viewfinder    |
 | `signal`     | 🟩    | Dark  | Brand theme — Card Night with Circuit Green stroke |
 | `embernight` | 🟧    | Dark  | Brand alt — Ember Night with Ember stroke          |
 | `midnight`   | 🌑    | Dark  | Deep blue-black with indigo accent — the default   |
@@ -378,21 +379,80 @@ Generate a separate card per sub-project by calling the API multiple times with 
 
 ## GitHub Action
 
-The Action fetches the SVG at CI time on GitHub's own infrastructure, validates it, and commits it to the repository. After setup, the README references the local file — no external image loading at render time.
+The [**Stack Fingerprint Action**](https://github.com/marketplace/actions/stack-fingerprint) ([source](https://github.com/mattqdev/stackfingerprint-action)) fetches the SVG at CI time on GitHub's own infrastructure, validates it, and commits it to the repository. After setup, the README references the local file — no external image loading at render time.
 
 ### Setup
 
-1. Create the directory: `mkdir -p .github/workflows assets`
-2. Copy the workflow from the README (or below) to `.github/workflows/stack-fingerprint.yml`
-3. Update your README to use the local path:
+1. Add `.github/workflows/stack-fingerprint.yml`:
+
+```yaml
+name: Stack Fingerprint
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1" # weekly refresh
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  card:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mattqdev/stackfingerprint-action@v1
+        with:
+          theme: scanner
+          layout: classic
+```
+
+2. Update your README to use the local path:
 
 ```markdown
 [![Stack Fingerprint](./assets/stack-fingerprint.svg)](https://stackfingerprint.vercel.app/?repo=OWNER/REPO)
 ```
 
-4. Push — the Action runs on the first push to `main` and weekly thereafter.
+3. Push — the Action runs on the first push to `main` and weekly thereafter.
 
-### Full workflow file
+### Inputs
+
+| Input            | Default                                           | Description                                                                     |
+| ---------------- | ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `layout`         | `classic`                                         | Any [layout](#layouts) ID                                                       |
+| `theme`          | `scanner`                                         | Any [theme](#themes) ID                                                         |
+| `icon-style`     | `color`                                           | `color` `mono` `none` `icononly`                                                |
+| `size`           | `md`                                              | `sm` `md` `lg` `xl`                                                             |
+| `filter`         | `all`                                             | Any [`categoryFilter`](#categoryfilter-values) value                            |
+| `path`           | —                                                 | Sub-directory to scan (monorepo)                                                |
+| `output`         | `assets/stack-fingerprint.svg`                    | Where the SVG is written                                                        |
+| `commit`         | `true`                                            | Commit and push when the SVG changes; `false` leaves it staged for a later step |
+| `commit-message` | `chore: update stack fingerprint badge [skip ci]` | Commit message                                                                  |
+| `api-url`        | `https://stackfingerprint.vercel.app/api/card`    | Point at your own instance to [self-host](#self-hosting) the whole pipeline     |
+
+Other card options (pill shape, accent line, background, data fields, ignores, pins) are read from [`.stackfingerprint.json`](#configuration-file--stackfingerprintjson) in your repo.
+
+### Outputs
+
+| Output     | Description                                    |
+| ---------- | ---------------------------------------------- |
+| `svg-path` | Path of the generated SVG                      |
+| `changed`  | `true` if the SVG differs from the last commit |
+
+### Monorepo: one card per package
+
+```yaml
+- uses: mattqdev/stackfingerprint-action@v1
+  with: { path: apps/web, output: assets/web.svg, commit: false }
+- uses: mattqdev/stackfingerprint-action@v1
+  with: { path: apps/api, output: assets/api.svg }
+```
+
+### Without the Action — copy-paste workflow
+
+If your organisation does not allow third-party Actions, this plain workflow does the same thing with `curl` (a maintained copy lives in [`.github/workflows/stack-fingerprint.yml`](./.github/workflows/stack-fingerprint.yml)):
 
 ```yaml
 name: Update Stack Fingerprint
@@ -462,7 +522,7 @@ jobs:
 - **Idempotent** — if the SVG has not changed, no commit is made.
 - **Validated** — the Action aborts if the API returns a non-200 status or a non-SVG body.
 - **Manual trigger** — use `workflow_dispatch` to regenerate the card on demand with custom parameters (theme, layout, size, path).
-- **Self-hosted compatible** — change the base URL in the `curl` command to point at your own instance.
+- **Self-hosted compatible** — set `api-url` (or change the base URL in the copy-paste workflow) to point at your own instance.
 
 ---
 
@@ -524,6 +584,19 @@ To avoid rate-limiting on busy instances, set a `GITHUB_TOKEN` with read-only pu
 ```env
 GITHUB_TOKEN=ghp_...
 ```
+
+#### Optional: usage dashboard
+
+The hosted instance logs which repos request cards and runs a daily GitHub code search to find where cards are embedded; results appear at `/admin`. To enable it on your own instance, run [`supabase/schema.sql`](./supabase/schema.sql) in a Supabase project and set:
+
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SECRET_KEY=sb_secret_...   # server-only
+ADMIN_PASSWORD=...
+CRON_SECRET=...                     # sent by Vercel Cron to /api/admin/scan
+```
+
+Without these variables tracking is skipped and the homepage showcase falls back to `src/data/showcase.js`.
 
 ---
 

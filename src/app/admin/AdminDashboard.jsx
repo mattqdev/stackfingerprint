@@ -18,6 +18,56 @@ const SOURCE_INFO = {
 
 const STATUS_TABS = ["all", "new", "featured", "hidden"];
 
+// Where a code-search hit sits. Only a root (or .github/, docs/) README is
+// what GitHub renders on the repo page; any other markdown counts as docs.
+function placeOf(e) {
+  const p = e.path.toLowerCase();
+  if (e.kind === "action" || e.kind === "workflow") return "workflow";
+  if (e.kind === "config") return "config";
+  if (/^(\.github\/|docs\/)?readme(\.[a-z]+)?$/.test(p)) return "readme";
+  if (/\.(md|mdx|markdown|rst|txt|adoc)$/.test(p) || /readme/.test(p))
+    return "docs";
+  if (/\.(html?|jsx?|tsx?|vue|svelte|astro)$/.test(p)) return "website";
+  return "other file";
+}
+
+// The label describes where *this repo's* card was found. A card living in
+// someone else's file is prefixed "ext" (e.g. a list or demo mentioning it).
+function foundInLabels(repo, embeds, usage) {
+  const labels = new Set();
+  for (const e of embeds) {
+    if (e.card_repo === repo)
+      labels.add(e.host_repo === repo ? placeOf(e) : `ext ${placeOf(e)}`);
+    else labels.add("hosts others");
+  }
+  if (!embeds.some((e) => e.card_repo === repo))
+    labels.add(usage.length ? "requests only" : "no file");
+  return [...labels];
+}
+
+const FOUND_INFO = {
+  readme: "Card is in this repo's own README",
+  docs: "Card is in another markdown file of this repo",
+  workflow: "This repo runs the action / a workflow",
+  config: "This repo has a Stack Fingerprint config file",
+  website: "Card is in an HTML / JS file of this repo",
+  "other file": "Card is in some other file of this repo",
+  "hosts others": "This repo's files show other repos' cards",
+  "requests only": "Seen in card requests, but no file found by code search",
+  "no file": "No file and no requests recorded",
+};
+const foundInfo = (l) =>
+  l.startsWith("ext ")
+    ? `Card appears only in another repo's ${l.slice(4)}, not in this repo`
+    : FOUND_INFO[l];
+
+const OWN_PLACES = ["readme", "docs", "workflow", "config", "website"];
+const labelOrder = (l) => {
+  const own = OWN_PLACES.indexOf(l);
+  if (own >= 0) return own;
+  return l.startsWith("ext ") ? 10 : 20;
+};
+
 function ago(iso) {
   if (!iso) return "—";
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -245,6 +295,7 @@ function ReposTab({ repos, embedsByRepo, usageByRepo, onChange }) {
   const [status, setStatus] = useState("new");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("last_seen");
+  const [foundIn, setFoundIn] = useState("all");
   const [addRepo, setAddRepo] = useState("");
   const [addError, setAddError] = useState("");
 
@@ -254,11 +305,33 @@ function ReposTab({ repos, embedsByRepo, usageByRepo, onChange }) {
     return c;
   }, [repos]);
 
+  const labelsByRepo = useMemo(() => {
+    const map = {};
+    for (const r of repos)
+      map[r.repo] = foundInLabels(
+        r.repo,
+        embedsByRepo[r.repo] ?? [],
+        usageByRepo[r.repo] ?? []
+      ).sort((a, b) => labelOrder(a) - labelOrder(b) || a.localeCompare(b));
+    return map;
+  }, [repos, embedsByRepo, usageByRepo]);
+
+  const foundInCounts = useMemo(() => {
+    const c = {};
+    for (const r of repos)
+      if (status === "all" || r.status === status)
+        for (const l of labelsByRepo[r.repo]) c[l] = (c[l] ?? 0) + 1;
+    return Object.entries(c).sort(
+      ([a], [b]) => labelOrder(a) - labelOrder(b) || a.localeCompare(b)
+    );
+  }, [repos, status, labelsByRepo]);
+
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const rows = repos.filter(
       (r) =>
         (status === "all" || r.status === status) &&
+        (foundIn === "all" || labelsByRepo[r.repo].includes(foundIn)) &&
         (!needle ||
           r.repo.includes(needle) ||
           r.meta?.description?.toLowerCase().includes(needle))
@@ -271,7 +344,7 @@ function ReposTab({ repos, embedsByRepo, usageByRepo, onChange }) {
       order: (r) => r.featured_order,
     }[sort];
     return rows.sort((a, b) => key(a) - key(b));
-  }, [repos, status, q, sort]);
+  }, [repos, status, q, sort, foundIn, labelsByRepo]);
 
   const add = async (e) => {
     e.preventDefault();
@@ -316,6 +389,19 @@ function ReposTab({ repos, embedsByRepo, usageByRepo, onChange }) {
           <option value="stars">Stars</option>
           <option value="order">Showcase order</option>
         </select>
+        <select
+          className="sf-admin-input"
+          value={foundIn}
+          onChange={(e) => setFoundIn(e.target.value)}
+          title="Where the card was found"
+        >
+          <option value="all">Found in: anywhere</option>
+          {foundInCounts.map(([l, n]) => (
+            <option key={l} value={l}>
+              Found in: {l} ({n})
+            </option>
+          ))}
+        </select>
         <form className="sf-admin-add" onSubmit={add}>
           <input
             className="sf-admin-input"
@@ -337,6 +423,7 @@ function ReposTab({ repos, embedsByRepo, usageByRepo, onChange }) {
             key={r.repo}
             r={r}
             embeds={embedsByRepo[r.repo] ?? []}
+            foundIn={labelsByRepo[r.repo]}
             usage={usageByRepo[r.repo] ?? []}
             onChange={onChange}
           />
@@ -346,7 +433,7 @@ function ReposTab({ repos, embedsByRepo, usageByRepo, onChange }) {
   );
 }
 
-function RepoRow({ r, embeds, usage, onChange }) {
+function RepoRow({ r, embeds, foundIn, usage, onChange }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
@@ -408,6 +495,17 @@ function RepoRow({ r, embeds, usage, onChange }) {
             <span>last {ago(r.last_seen)}</span>
           </div>
           <div className="sf-admin-sources">
+            {foundIn.map((l) => (
+              <span
+                key={l}
+                className={`sf-admin-chip sf-admin-found ${
+                  OWN_PLACES.includes(l) ? "is-own" : "is-ext"
+                }`}
+                title={foundInfo(l)}
+              >
+                {l}
+              </span>
+            ))}
             {r.sources.map((s) => (
               <span key={s} className="sf-admin-chip" title={SOURCE_INFO[s]}>
                 {s}
@@ -542,7 +640,7 @@ function RepoRow({ r, embeds, usage, onChange }) {
                 <ul className="sf-admin-list">
                   {embeds.map((e) => (
                     <li key={e.id}>
-                      <span className="sf-admin-chip">{e.kind}</span>
+                      <span className="sf-admin-chip">{placeOf(e)}</span>
                       <a
                         href={e.html_url}
                         target="_blank"
@@ -673,37 +771,74 @@ function UsageTab({ usage }) {
 
 // ── Code-search results ────────────────────────────────────────────────────
 function EmbedsTab({ embeds }) {
+  const [place, setPlace] = useState("all");
+  const places = useMemo(() => {
+    const c = {};
+    for (const e of embeds) {
+      const p = placeOf(e);
+      c[p] = (c[p] ?? 0) + 1;
+    }
+    return Object.entries(c).sort(([a], [b]) => labelOrder(a) - labelOrder(b));
+  }, [embeds]);
+  const rows = embeds.filter((e) => place === "all" || placeOf(e) === place);
+
   return (
-    <div className="sf-admin-table-wrap">
-      <table className="sf-admin-table">
-        <thead>
-          <tr>
-            <th>File</th>
-            <th>Kind</th>
-            <th>Card shows</th>
-            <th>First found</th>
-            <th>Last seen</th>
-          </tr>
-        </thead>
-        <tbody>
-          {embeds.map((e) => (
-            <tr key={e.id}>
-              <td>
-                <a href={e.html_url} target="_blank" rel="noopener noreferrer">
-                  {e.host_repo}/{e.path}
-                </a>
-              </td>
-              <td>
-                <span className="sf-admin-chip">{e.kind}</span>
-              </td>
-              <td>{e.card_repo}</td>
-              <td>{ago(e.first_seen)}</td>
-              <td>{ago(e.last_seen)}</td>
-            </tr>
+    <section>
+      <div className="sf-admin-toolbar">
+        <div className="sf-admin-seg">
+          {[["all", embeds.length], ...places].map(([p, n]) => (
+            <button
+              key={p}
+              className={place === p ? "is-on" : ""}
+              onClick={() => setPlace(p)}
+            >
+              {p} <span>{n}</span>
+            </button>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </div>
+      </div>
+      <div className="sf-admin-table-wrap">
+        <table className="sf-admin-table">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Found in</th>
+              <th>Kind</th>
+              <th>Card shows</th>
+              <th>First found</th>
+              <th>Last seen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((e) => (
+              <tr key={e.id}>
+                <td>
+                  <a
+                    href={e.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {e.host_repo}/{e.path}
+                  </a>
+                </td>
+                <td>
+                  <span className="sf-admin-chip">{placeOf(e)}</span>
+                  {e.host_repo !== e.card_repo && (
+                    <span className="sf-admin-muted"> · other repo</span>
+                  )}
+                </td>
+                <td>
+                  <span className="sf-admin-chip">{e.kind}</span>
+                </td>
+                <td>{e.card_repo}</td>
+                <td>{ago(e.first_seen)}</td>
+                <td>{ago(e.last_seen)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }
 

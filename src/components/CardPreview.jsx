@@ -104,6 +104,8 @@ export function CardExport({ svg, repoInfo, cfg }) {
   const linkUrl = `https://stackfingerprint.vercel.app/?repo=${repoInfo.owner}/${repoInfo.repo}`;
   const embedMd = `[![Stack Fingerprint](${embedUrl})](${linkUrl})`;
   const embedHtml = `<a href="${linkUrl}"><img src="${embedUrl}" alt="Stack Fingerprint for ${repoInfo.owner}/${repoInfo.repo}" /></a>`;
+  const actionYaml = buildActionYaml(cfg);
+  const actionMd = `[![Stack Fingerprint](./assets/stack-fingerprint.svg)](${linkUrl})`;
 
   const download = () => {
     const blob = new Blob([svg], { type: "image/svg+xml" });
@@ -127,8 +129,75 @@ export function CardExport({ svg, repoInfo, cfg }) {
       </div>
       <EmbedSnippet filename="README.md" code={embedMd} />
       <EmbedSnippet filename="index.html" code={embedHtml} />
+
+      <div className="sf-action-note">
+        <span className="sf-label">Recommended · GitHub Action</span>
+        <p className="sf-body">
+          Commit the SVG to your repo instead of hotlinking it: served by
+          GitHub, refreshed on every push.{" "}
+          <a
+            className="sf-mint"
+            href={ACTION_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View on Marketplace →
+          </a>
+        </p>
+      </div>
+      <EmbedSnippet
+        filename=".github/workflows/stack-fingerprint.yml"
+        code={actionYaml}
+      />
+      <EmbedSnippet filename="README.md" code={actionMd} />
     </div>
   );
+}
+
+export const ACTION_URL =
+  "https://github.com/marketplace/actions/stack-fingerprint";
+
+// Action inputs mirror the card options; defaults are left out.
+const ACTION_DEFAULTS = {
+  iconStyle: "color",
+  size: "md",
+  categoryFilter: "all",
+};
+const ACTION_INPUTS = {
+  iconStyle: "icon-style",
+  size: "size",
+  categoryFilter: "filter",
+};
+
+function buildActionYaml(cfg) {
+  const withLines = [
+    `          theme: ${cfg.theme}`,
+    `          layout: ${cfg.layout}`,
+  ];
+  for (const [key, input] of Object.entries(ACTION_INPUTS)) {
+    if (cfg[key] && cfg[key] !== ACTION_DEFAULTS[key])
+      withLines.push(`          ${input}: ${cfg[key]}`);
+  }
+  return `name: Stack Fingerprint
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  card:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mattqdev/stackfingerprint-action@v1
+        with:
+${withLines.join("\n")}`;
 }
 
 /* ─── Shared sub-components ────────────────────────────────────────────── */

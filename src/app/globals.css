@@ -761,6 +761,23 @@ input::placeholder {
   }
 }
 
+/* ── Embed panel: GitHub Action callout ───────────────────────────────── */
+
+.sf-action-note {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.sf-action-note .sf-label {
+  color: var(--signal);
+}
+.sf-action-note .sf-body {
+  font-size: 12px;
+}
+
 /* ── Used by (showcase gallery) ───────────────────────────────────────── */
 
 .sf-showcase {
@@ -1158,6 +1175,16 @@ input::placeholder {
   background: var(--night);
   border: 1px solid rgba(42, 155, 0, 0.35);
   white-space: nowrap;
+}
+.sf-admin-found.is-own {
+  color: var(--night);
+  background: var(--mint);
+  border-color: var(--mint);
+}
+.sf-admin-found.is-ext {
+  color: var(--text-2);
+  background: transparent;
+  border: 1px dashed var(--text-3);
 }
 .sf-admin-repo-actions {
   display: flex;
