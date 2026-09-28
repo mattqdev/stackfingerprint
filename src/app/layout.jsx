@@ -67,6 +67,9 @@ export const metadata = {
   alternates: {
     canonical: "https://stackfingerprint.vercel.app",
   },
+  verification: {
+    google: "kkjcQbru_GaoTFpR7cIshWnCbYCi4Xl0lAaclaF_Fy0",
+  },
 };
 
 export default function RootLayout({ children }) {
