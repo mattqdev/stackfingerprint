@@ -1,5 +1,5 @@
 // src/app/api/card/route.js
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { fetchContents } from "../../../lib/github";
 import { detectStack } from "../../../lib/detect";
 import { buildSVG } from "../../../lib/svgBuilder";
@@ -14,6 +14,7 @@ import {
   BG_DECORATIONS,
 } from "../../../data/cardOptions";
 import { THEMES } from "../../../data/themes";
+import { trackHit } from "../../../lib/server/usage";
 
 export const revalidate = 0;
 
@@ -242,6 +243,9 @@ export async function GET(request) {
     // ── 6. Build icon map & render SVG ──────────────────────────────────
     const iconBase64Map = await buildIconMap(stackForRender, cfg.iconStyle);
     const svg = buildSVG(owner, repo, stackForRender, cfg, iconBase64Map);
+
+    // Record who requested this card once the response has been sent.
+    after(() => trackHit(request, `${owner}/${repo}`, urlSubPath));
 
     return new NextResponse(svg, {
       status: 200,

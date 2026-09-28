@@ -76,7 +76,8 @@ function renderPill(
   iconW,
   iconStyle,
   accentColor,
-  iconBase64Map
+  iconBase64Map,
+  pillStroke
 ) {
   // ── Opacity logic ──────────────────────────────────────────────────────
   // isIgnored: 0.25 opacity (ghost — still visible but clearly excluded)
@@ -110,7 +111,9 @@ function renderPill(
     // Ghost border for ignored pills in icononly mode
     const strokeAttr = p.isIgnored
       ? ` stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-dasharray="3,2"`
-      : "";
+      : pillStroke
+        ? ` stroke="${pillStroke}" stroke-width="1"`
+        : "";
 
     return `<rect x="${px}" y="${y}" width="${size}" height="${size}" rx="${rad}" fill="${fillColor}" opacity="${pillOpacity}"${strokeAttr}/>
       ${inner}`;
@@ -140,7 +143,9 @@ function renderPill(
   // Ghost dashed border for ignored pills
   const strokeAttr = p.isIgnored
     ? ` stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-dasharray="4,3"`
-    : "";
+    : pillStroke
+      ? ` stroke="${pillStroke}" stroke-width="1"`
+      : "";
 
   return `<rect x="${px}" y="${y}" width="${p.pw.toFixed(1)}" height="${pillH}" rx="${rad}" fill="${fillColor}" opacity="${pillOpacity}"${strokeAttr}/>
       ${iconSVG}
@@ -266,7 +271,8 @@ function buildClassic(owner, repo, stack, theme, cfg, iconBase64Map) {
         IW,
         cfg.iconStyle,
         theme.accent,
-        iconBase64Map
+        iconBase64Map,
+        theme.pillStroke
       );
       x += p.pw + GAP;
     });
@@ -337,7 +343,8 @@ function buildCompact(owner, repo, stack, theme, cfg, iconBase64Map) {
         IW,
         cfg.iconStyle,
         theme.accent,
-        iconBase64Map
+        iconBase64Map,
+        theme.pillStroke
       );
       x += p.pw + GAP;
     });
@@ -404,7 +411,8 @@ function buildBanner(owner, repo, stack, theme, cfg, iconBase64Map) {
         IW,
         cfg.iconStyle,
         theme.accent,
-        iconBase64Map
+        iconBase64Map,
+        theme.pillStroke
       );
       x += p.pw + GAP;
     });
@@ -480,7 +488,8 @@ function buildTall(owner, repo, stack, theme, cfg, iconBase64Map) {
         IW,
         cfg.iconStyle,
         theme.accent,
-        iconBase64Map
+        iconBase64Map,
+        theme.pillStroke
       );
       x += pw + GAP;
     });
@@ -620,7 +629,8 @@ function buildMinimal(owner, repo, stack, theme, cfg, iconBase64Map) {
         IW,
         cfg.iconStyle,
         theme.accent,
-        iconBase64Map
+        iconBase64Map,
+        theme.pillStroke
       );
       x += p.pw + GAP;
     });
@@ -769,7 +779,8 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
         IW,
         cfg.iconStyle,
         theme.accent,
-        iconBase64Map
+        iconBase64Map,
+        theme.pillStroke
       );
     });
   } else {
@@ -790,7 +801,8 @@ function buildSidebar(owner, repo, stack, theme, cfg, iconBase64Map) {
         IW,
         cfg.iconStyle,
         theme.accent,
-        iconBase64Map
+        iconBase64Map,
+        theme.pillStroke
       );
     });
   }
@@ -897,7 +909,8 @@ function buildSplit(owner, repo, stack, theme, cfg, iconBase64Map) {
         IW,
         cfg.iconStyle,
         theme.accent,
-        iconBase64Map
+        iconBase64Map,
+        theme.pillStroke
       );
       x += p.pw + GAP;
     });
@@ -1008,6 +1021,19 @@ function buildCards(owner, repo, stack, theme, cfg, iconBase64Map) {
 // ══════════════════════════════════════════════════════════════════════════════
 // ── Shared wrapper ─────────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
+// ── Viewfinder corners (the site's scan frame) ─────────────────────────────
+function viewfinderCorners(W, H, color) {
+  const i = 7,
+    L = 16;
+  const d = [
+    `M${i} ${i + L}V${i}H${i + L}`,
+    `M${W - i - L} ${i}H${W - i}V${i + L}`,
+    `M${W - i} ${H - i - L}V${H - i}H${W - i - L}`,
+    `M${i + L} ${H - i}H${i}V${H - i - L}`,
+  ].join("");
+  return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+
 function buildWrapper(
   W,
   H,
@@ -1042,6 +1068,12 @@ function buildWrapper(
       <stop offset="100%" stop-color="transparent"/>
     </linearGradient>`,
     `<clipPath id="card"><rect width="${W}" height="${H}" rx="${radius}"/></clipPath>`,
+    theme.glow &&
+      `<radialGradient id="glow" cx="-8%" cy="108%" r="85%" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="${theme.glow}" stop-opacity="0.22"/>
+      <stop offset="38%" stop-color="${theme.glow}" stop-opacity="0.08"/>
+      <stop offset="70%" stop-color="${theme.glow}" stop-opacity="0"/>
+    </radialGradient>`,
     bgParts.defs,
     accParts.defs,
   ]
@@ -1055,12 +1087,14 @@ function buildWrapper(
   <g clip-path="url(#card)">
     <rect width="${W}" height="${H}" fill="url(#bg)"/>
     <rect width="${W}" height="${H}" fill="url(#shimmer)"/>
+    ${theme.glow ? `<rect width="${W}" height="${H}" fill="url(#glow)"/>` : ""}
     ${bgParts.body}
     ${
       sw
         ? `<rect x="${sw / 2}" y="${sw / 2}" width="${W - sw}" height="${H - sw}" rx="${radius - sw / 2}" fill="none" stroke="${theme.stroke}" stroke-width="${sw}"/>`
         : `<rect width="${W}" height="${H}" fill="none" stroke="${theme.border}" stroke-width="1"/>`
     }
+    ${theme.viewfinder ? viewfinderCorners(W, H, theme.viewfinder) : ""}
     ${accParts.body}
     ${innerSVG}
   </g>

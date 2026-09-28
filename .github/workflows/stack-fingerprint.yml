@@ -58,7 +58,7 @@ on:
           - cards
       theme:
         description: "Colour theme"
-        default: "midnight"
+        default: "scanner"
         type: string
       iconStyle:
         description: "Icon rendering style"
@@ -108,7 +108,7 @@ jobs:
         env:
           REPO: ${{ github.repository }}
           LAYOUT: ${{ inputs.layout || 'classic' }}
-          THEME: ${{ inputs.theme || 'midnight' }}
+          THEME: ${{ inputs.theme || 'scanner' }}
           ICON_STYLE: ${{ inputs.iconStyle || 'color' }}
           SIZE: ${{ inputs.size || 'md' }}
           FILTER: ${{ inputs.filter || 'all' }}
@@ -129,7 +129,7 @@ jobs:
         run: |
           mkdir -p "$(dirname "$OUTPUT")"
 
-          HTTP_CODE=$(curl -sS -w "%{http_code}" -o "$OUTPUT" "$API_URL")
+          HTTP_CODE=$(curl -sS -A "stack-fingerprint-action/1 (+https://github.com/${GITHUB_REPOSITORY})" -w "%{http_code}" -o "$OUTPUT" "$API_URL")
 
           if [ "$HTTP_CODE" -ne 200 ]; then
             echo "::error::Stack Fingerprint API returned HTTP $HTTP_CODE"

@@ -1,0 +1,29 @@
+name: "Add my repo to the showcase"
+description: "Using Stack Fingerprint in your README? Get featured on stackfingerprint.vercel.app."
+title: "[Showcase]: owner/repo"
+labels: ["showcase"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for using Stack Fingerprint! Featured repos are shown in the **Used by** section of the website.
+  - type: input
+    id: repo
+    attributes:
+      label: Repository
+      description: "Public GitHub repository (owner/repo) whose README embeds the card."
+      placeholder: "owner/repo"
+    validations:
+      required: true
+  - type: input
+    id: theme
+    attributes:
+      label: Preferred theme and layout (optional)
+      placeholder: "ocean / classic"
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: The repository is public and its README contains a Stack Fingerprint card.
+          required: true

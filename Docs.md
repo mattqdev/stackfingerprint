@@ -387,7 +387,7 @@ The Action fetches the SVG at CI time on GitHub's own infrastructure, validates 
 3. Update your README to use the local path:
 
 ```markdown
-![Stack Fingerprint](./assets/stack-fingerprint.svg)
+[![Stack Fingerprint](./assets/stack-fingerprint.svg)](https://stackfingerprint.vercel.app/?repo=OWNER/REPO)
 ```
 
 4. Push — the Action runs on the first push to `main` and weekly thereafter.

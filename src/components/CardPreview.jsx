@@ -100,8 +100,10 @@ export function CardExport({ svg, repoInfo, cfg }) {
   if (!svg) return null;
 
   const embedUrl = `https://stackfingerprint.vercel.app/api/card?repo=${repoInfo.owner}/${repoInfo.repo}&theme=${cfg.theme}&layout=${cfg.layout}&size=${cfg.size}&icons=${cfg.iconStyle}&pills=${cfg.pillShape}`;
-  const embedMd = `![Stack Fingerprint](${embedUrl})`;
-  const embedHtml = `<img src="${embedUrl}" alt="Stack Fingerprint for ${repoInfo.owner}/${repoInfo.repo}" />`;
+  // Clicking the card opens the builder pre-filled with this repo.
+  const linkUrl = `https://stackfingerprint.vercel.app/?repo=${repoInfo.owner}/${repoInfo.repo}`;
+  const embedMd = `[![Stack Fingerprint](${embedUrl})](${linkUrl})`;
+  const embedHtml = `<a href="${linkUrl}"><img src="${embedUrl}" alt="Stack Fingerprint for ${repoInfo.owner}/${repoInfo.repo}" /></a>`;
 
   const download = () => {
     const blob = new Blob([svg], { type: "image/svg+xml" });

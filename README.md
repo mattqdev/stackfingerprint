@@ -16,8 +16,7 @@ Zero auth. Zero config. Paste a repo, get a badge.
 
 ---
 
-![Stack Fingerprint card for this repo](./assets/stack-fingerprint.svg)
-![Stack Fingerprint card for this repo](https://stackfingerprint.vercel.app/api/card)
+[![Stack Fingerprint card for this repo](./assets/stack-fingerprint.svg)](https://stackfingerprint.vercel.app/?repo=mattqdev/stackfingerprint)
 
 ---
 
@@ -42,13 +41,13 @@ You don't need to touch a line of code to get the perfect look. The **Interactiv
 If you just want to try it without setting up the Action, paste this into your README:
 
 ```markdown
-![Stack Fingerprint](https://stackfingerprint.vercel.app/api/card?repo=OWNER/REPO)
+[![Stack Fingerprint](https://stackfingerprint.vercel.app/api/card?repo=OWNER/REPO)](https://stackfingerprint.vercel.app/?repo=OWNER/REPO)
 ```
 
 Customise with query parameters (see [API reference](./DOCS.md#api-reference)):
 
 ```markdown
-![Stack Fingerprint](https://stackfingerprint.vercel.app/api/card?repo=vercel/next.js&theme=ocean&layout=classic&size=lg&categoryFilter=prodonly)
+[![Stack Fingerprint](https://stackfingerprint.vercel.app/api/card?repo=vercel/next.js&theme=ocean&layout=classic&size=lg&categoryFilter=prodonly)](https://stackfingerprint.vercel.app/?repo=vercel/next.js)
 ```
 
 ---
@@ -104,7 +103,7 @@ Drop `.github/workflows/stack-fingerprint.yml` into your repo:
 Then reference the committed file in your README:
 
 ```markdown
-![Stack Fingerprint](./assets/stack-fingerprint.svg)
+[![Stack Fingerprint](./assets/stack-fingerprint.svg)](https://stackfingerprint.vercel.app/?repo=OWNER/REPO)
 ```
 
 The SVG is now served from `raw.githubusercontent.com` — GitHub's own CDN — with no runtime dependency on `stackfingerprint.vercel.app`.

@@ -17,6 +17,7 @@ import {
   Viewfinder,
 } from "../components/brand/Brand";
 import { THEMES } from "../data/themes";
+import Showcase from "../components/Showcase";
 
 const GITHUB_REPO = "https://github.com/mattqdev/stackfingerprint";
 const DOCS_URL = `${GITHUB_REPO}/blob/main/Docs.md`;
@@ -585,9 +586,10 @@ export default function Page() {
             <>
               <Pillars />
               <HowItWorks />
+              <Showcase index="04" />
             </>
           )}
-          <StarCTA index={phase === "done" ? "03" : "04"} />
+          <StarCTA index={phase === "done" ? "03" : "05"} />
         </main>
 
         <Footer />

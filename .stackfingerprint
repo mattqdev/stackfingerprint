@@ -13,5 +13,10 @@
   ],
   "labels": {
     "nextjs": "Next.js 14"
+  },
+  "card": {
+    "theme": "scanner",
+    "layout": "classic",
+    "bgDecoration": "none"
   }
 }
