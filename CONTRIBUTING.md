@@ -8,6 +8,7 @@ This document covers everything you need to know to contribute effectively.
 
 ## Table of contents
 
+- [Hacktoberfest](#hacktoberfest)
 - [Code of conduct](#code-of-conduct)
 - [Getting started](#getting-started)
 - [Project architecture](#project-architecture)
@@ -22,6 +23,18 @@ This document covers everything you need to know to contribute effectively.
 - [Submitting a pull request](#submitting-a-pull-request)
 - [Reporting bugs](#reporting-bugs)
 - [Requesting features](#requesting-features)
+
+---
+
+## Hacktoberfest
+
+Stack Fingerprint takes part in [Hacktoberfest](https://hacktoberfest.com). Good places to start:
+
+- Issues labelled [`good first issue`](https://github.com/mattqdev/stackfingerprint/issues?q=is%3Aopen+label%3A%22good+first+issue%22) — each one lists the files to touch and what "done" looks like
+- [`signal`](https://github.com/mattqdev/stackfingerprint/issues?q=is%3Aopen+label%3Asignal) — teach the scanner a new technology (usually ~20 lines)
+- [`theme`](https://github.com/mattqdev/stackfingerprint/issues?q=is%3Aopen+label%3Atheme) — add a colour theme (one object in `themes.js`)
+
+Comment on an issue before starting so two people don't work on the same thing. Low-effort PRs (whitespace, README reshuffles) will be marked `invalid`.
 
 ---
 
@@ -87,14 +100,14 @@ src/
 │
 ├── data/
 │   ├── signals.js               # ← THE MOST COMMON CONTRIBUTION TARGET
-│   │                            #   All 70+ tech detection signal definitions
-│   ├── themes.js                # 10 card colour themes
+│   │                            #   200+ tech detection signal definitions
+│   ├── themes.js                # 23 card colour themes
 │   └── cardOptions.js           # Layout, size, style, and field option sets
 │
 └── lib/
     ├── github.js                # GitHub Contents API — fetchContents, fetchRepoMeta
     ├── detect.js                # Signal matching engine — runs signals against file tree
-    └── svgBuilder.js            # SVG generation — 5 layout renderers + shared wrapper
+    └── svgBuilder.js            # SVG generation — 10 layout renderers + shared wrapper
 ```
 
 ### Data flow
@@ -134,7 +147,7 @@ This is the most impactful and most welcome contribution. Every new signal means
 
 #### Signal schema
 
-Every signal lives in `src/data/signals.js` as an object in the exported array:
+Every signal lives in `src/data/signals.js` as an object in the exported `SIGNALS` array:
 
 ```js
 {
@@ -144,69 +157,59 @@ Every signal lives in `src/data/signals.js` as an object in the exported array:
   // Display label shown on the pill
   label: "Vitest",
 
-  // Category — determines grouping in tall/terminal layouts and filter options
-  // Valid values: lang, framework, runtime, build, pkgmgr, db, testing, cicd, infra, lint
-  category: "testing",
-
-  // simple-icons slug — find it at https://simpleicons.org (search → copy slug from URL)
-  // Set to null if the tech has no simple-icons entry
-  iconSlug: "vitest",
-
   // Pill background colour — use the brand's official hex when possible
   color: "#6E9F18",
 
-  // Text and icon colour — use "#ffffff" or "#000000" for contrast
-  // Rule of thumb: dark background → white text, light background → black text
+  // Text and icon colour — "#ffffff" or "#000000" for contrast
   textColor: "#ffffff",
 
-  // Detection rules — at least one of `files`, `deps`, or `dirs` is required
-  match: {
-    // File names or glob-style paths that indicate this tech is present
-    // Matched against the full relative path from the repo root
-    files: ["vitest.config.ts", "vitest.config.js", "vitest.config.mts"],
+  // simple-icons slug — find it at https://simpleicons.org (copy the slug from the URL)
+  iconSlug: "vitest",
 
-    // Keys to look for in package.json `dependencies` or `devDependencies`
-    deps: ["vitest"],
+  // Category — see Docs.md → Signal categories for the full list
+  category: "testing",
 
-    // Directory names — matched if a directory with this name exists at the root
-    dirs: [],
-  },
+  // File-based detection: called with bare filenames AND path-prefixed ones (e.g. "src/auth.ts")
+  check: (f) => /^vitest\.config/.test(f),
 }
 ```
 
-#### Match rules in detail
+#### Dependency-based detection
 
-The detection engine in `detect.js` applies the following logic:
+Many technologies don't have a telltale config file. Those are detected from manifests in `src/lib/detect.js`, which maps a package name to a signal `id`:
 
-- **`files`** — checks whether any file in the repo's full file tree has a path that ends with or contains the specified string. `"vite.config.ts"` matches `./vite.config.ts` and `packages/app/vite.config.ts`.
-- **`deps`** — checks `package.json` `dependencies`, `devDependencies`, and `peerDependencies`. The engine fetches and parses `package.json` if it exists in the root.
-- **`dirs`** — checks whether a directory with that exact name exists at the repository root.
+| Manifest                             | Map                  |
+| ------------------------------------ | -------------------- |
+| `package.json`                       | `DEP_SIGNALS`        |
+| `requirements.txt`, `pyproject.toml` | `PYTHON_DEP_SIGNALS` |
+| `Gemfile`                            | `RUBY_DEP_SIGNALS`   |
+| `composer.json`                      | `PHP_DEP_SIGNALS`    |
 
-All specified match conditions are evaluated independently — a signal matches if **any one of them** is satisfied (OR logic, not AND).
+To add one, define the signal in `signals.js` (with a `check` that returns `false` if there's no config file to match) and add `"package-name": "signal-id"` to the right map. If the tech is always a dev tool (test runner, linter…), also add its id to `INHERENTLY_DEV`.
 
 #### Signal writing guidelines
 
-- **Be specific.** `"jest.config.js"` is better than `"config.js"`. The more specific the match, the fewer false positives.
-- **Cover all variants.** If a config file can be `.js`, `.ts`, `.mjs`, or `.cjs`, include all of them in `files`.
-- **Use the official brand colour.** Check [brandcolors.net](https://brandcolors.net) or the tech's own design system. This makes the card look professional.
-- **Contrast matters.** A pill with `color: "#FFDD57"` (yellow) needs `textColor: "#000000"` to be readable. If the hex is light (luminance > 0.4), use black text; otherwise use white.
-- **Use the right category.** If something spans multiple categories (e.g. Supabase is a DB and an infra platform), pick the most specific one.
-- **Don't duplicate.** Check that the technology isn't already defined before adding it.
+- **Be specific.** `/^jest\.config/` is better than `/config/`. The more specific the match, the fewer false positives.
+- **Cover all variants.** If a config file can be `.js`, `.ts`, `.mjs`, or `.cjs`, match all of them.
+- **Use the official brand colour.** It makes the card look professional.
+- **Contrast matters.** If the hex is light (luminance > 0.4), use black text; otherwise use white.
+- **Use the right category.** If something spans multiple categories, pick the most specific one.
+- **Don't duplicate.** Search `signals.js` and `detect.js` before adding.
 
 #### Step-by-step
 
-1. Find the `simple-icons` slug for your technology: go to [simpleicons.org](https://simpleicons.org), search for the icon, and copy the slug from the URL (e.g. `nextdotjs` for Next.js).
-2. Add your signal object to `src/data/signals.js`. Place it near other signals in the same category for readability.
-3. Run `npm run dev` and scan a repo that you know uses the technology to verify it's detected.
-4. Check that the icon renders correctly in the browser preview.
-5. Check that the pill text is readable against the background colour.
-6. Open a PR with a brief description of what you added and which repo you tested against.
+1. Find the `simple-icons` slug for your technology at [simpleicons.org](https://simpleicons.org).
+2. Add your signal to `src/data/signals.js`, near other signals in the same category, and the dependency mapping to `src/lib/detect.js` if needed.
+3. Add a row to the category table in `Docs.md` if you're introducing a notable example.
+4. Run `npm run dev` and open `http://localhost:3000/api/card?repo=<owner>/<repo>` for a real repo that uses the technology.
+5. Check that the icon renders and the pill text is readable.
+6. Open a PR naming the repo you tested against.
 
 ---
 
 ### Adding a theme
 
-Themes live in `src/data/themes.js`. Each theme is a key/value pair where the key becomes the `?theme=` parameter value.
+Themes live in `src/data/themes.js`. Each theme is a key/value pair where the key becomes the `?theme=` parameter value. Also add a row to the themes table in `Docs.md`.
 
 #### Theme schema
 
@@ -251,10 +254,10 @@ export const THEMES = {
 
 #### Theme guidelines
 
-- **Dark backgrounds only.** The card is designed for dark themes — all existing themes use dark backgrounds. Light themes would require significant changes to text contrast throughout `svgBuilder.js`.
+- **Dark and light both work.** Most themes are dark; `arctic`, `rose`, `parchment`, `lavender` and `slate` are good references for a light one.
 - **Keep `bg1` and `bg2` close in value.** A very high-contrast gradient looks garish. Subtle is better.
 - **The `accent` colour is the personality of the theme.** It appears on the accent line, in mono icon fills, and in the UI configurator. Make it distinctive but not neon-harsh.
-- **Test all five layouts.** Some layouts surface different theme properties. The Terminal layout heavily uses `sub` and `title`; the Tall layout uses `sub` for category labels.
+- **Test all layouts.** Some layouts surface different theme properties. The Terminal layout heavily uses `sub` and `title`; the Tall layout uses `sub` for category labels.
 - **Test all icon styles.** With `iconStyle=mono`, icons are filled with the `accent` colour on a white background — make sure it still looks good.
 
 ---
@@ -335,7 +338,7 @@ npm run lint
 # Test your change manually
 npm run dev
 # → scan a real repo that exercises the code path you changed
-# → check all 5 layouts
+# → check all layouts
 # → check all 3 icon styles if you touched SVG generation
 ```
 

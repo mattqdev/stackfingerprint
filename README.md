@@ -190,24 +190,31 @@ The `path` parameter is also accepted by the GitHub Action (`with: { path: apps/
 
 This project thrives on community input. Before opening a pull request, **please open an issue first** so we can discuss the goal and make sure it is a good fit.
 
+### 🎃 Hacktoberfest
+
+Stack Fingerprint is participating in Hacktoberfest. Pick an issue labelled [`good first issue`](https://github.com/mattqdev/stackfingerprint/issues?q=is%3Aopen+label%3A%22good+first+issue%22): most are self-contained (one new theme, one new detected technology) and list exactly which files to touch.
+
 ### Help grow the signal database
 
-Is your favourite framework missing? Adding a new detection signal is as easy as adding a JSON object to `src/data/signals.js`:
+Is your favourite framework missing? Adding a detection signal is one object in `src/data/signals.js`:
 
 ```js
 {
   id: "astro",
   label: "Astro",
-  category: "framework",
-  iconSlug: "astro",
   color: "#FF5D01",
-  match: {
-    files: ["astro.config.mjs", "astro.config.js"],
-  },
+  textColor: "#ffffff",
+  iconSlug: "astro",
+  category: "framework",
+  check: (f) => /^astro\.config/.test(f),
 }
 ```
 
-See [Docs.md → Adding a signal](./Docs.md#adding-a-signal) for the full signal schema.
+Technologies without a config file are detected from `package.json` / `pyproject.toml` / `Gemfile` / `composer.json` via the maps in `src/lib/detect.js`. See [CONTRIBUTING.md → Adding detection signals](./CONTRIBUTING.md#adding-detection-signals) for the full guide.
+
+### Using the card? Get featured
+
+If your README embeds a Stack Fingerprint card, [open a showcase request](https://github.com/mattqdev/stackfingerprint/issues/new?template=4_showcase.yml) to appear in the **Used by** section of the website.
 
 ---
 

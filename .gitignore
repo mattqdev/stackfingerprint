@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Placet local server discovery file (port + secret token) — do not commit
 .placet/
+
+# outreach: target lists and contact log stay private
+scripts/outreach/data/
