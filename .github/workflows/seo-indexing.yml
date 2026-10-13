@@ -42,3 +42,9 @@ jobs:
       - name: IndexNow
         if: ${{ !cancelled() }}
         run: npx site-seo-kit indexnow ${SINCE:+--since "$SINCE"}
+
+      - name: Google Indexing API
+        if: ${{ !cancelled() }}
+        env:
+          GOOGLE_INDEXING_CREDENTIALS: ${{ secrets.GOOGLE_INDEXING_CREDENTIALS }}
+        run: npx site-seo-kit submit ${SINCE:+--since "$SINCE"}
