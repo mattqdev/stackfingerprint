@@ -45,3 +45,6 @@ next-env.d.ts
 
 # outreach: target lists and contact log stay private
 scripts/outreach/data/
+
+# Google Indexing API service-account key (site-seo-kit)
+.secrets/

@@ -125,6 +125,8 @@ export default {
   },
 
   indexing: {
+    // Key: the single *.json in .secrets/ locally, GOOGLE_INDEXING_CREDENTIALS in CI.
+    google: { quota: 200 },
     // Public by design: generate serves it as /2780e666619b33997cce404258d346e4.txt.
     indexnow: { key: "2780e666619b33997cce404258d346e4" },
   },
