@@ -1,0 +1,121 @@
+---
+title: "How to add a tech stack section to your GitHub README (2026 guide)"
+description: "Three ways to show what your project is built with: hand-made shields.io badges, a live auto-detected stack card, or a card committed by a GitHub Action. Pros, cons and copy-paste snippets."
+date: 2026-10-13
+tags: [readme, github, badges]
+techs: [github-actions, nextjs, typescript, tailwind]
+featured: true
+---
+
+A "Tech stack" section is one of the first things people look for in a README. It answers, in two seconds, _can I contribute to this?_ and _is this the kind of project I'm looking for?_
+
+There are three common ways to build one. They differ mostly in **how they stay up to date**, which is where most READMEs fail.
+
+## Option 1: hand-picked shields.io badges
+
+The classic approach: one static badge per technology.
+
+<Snippet
+  code={`![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)`}
+/>
+
+**Pros:** total control, works everywhere, no dependencies.
+
+**Cons:** you maintain it by hand. When the project moves from Webpack to Vite, or drops Redux for Zustand, the badges stay. Most stale READMEs are stale exactly here.
+
+<Callout type="tip" title="Shortcut">
+  Every technology page in our [technology directory](/tech) has a ready-made
+  badge with the right colour and logo, e.g. [Next.js](/tech/nextjs) or
+  [Prisma](/tech/prisma).
+</Callout>
+
+## Option 2: a live, auto-detected stack card
+
+Instead of listing technologies yourself, let a tool read the repo and render the list. With Stack Fingerprint that's one line, with no token and no sign-up:
+
+<EmbedSnippet />
+
+Replace `OWNER/REPO` with your repository. The card scans the file tree (config files like `next.config.ts`, `Dockerfile`, `*.tf`) and the dependency manifests (`package.json`, `pyproject.toml`, `Gemfile`, `composer.json`), then renders an SVG:
+
+<StackCard repo="mattqdev/stackfingerprint" theme="signal" />
+
+**Pros:** never goes stale, zero maintenance, consistent look.
+
+**Cons:** the image is served by a third-party domain, and a full scan can surface technologies you'd rather not show (more on filtering below).
+
+## Option 3: a card committed by a GitHub Action (recommended)
+
+This combines the two: the card is auto-detected, but the SVG file lives **in your repo** and is served by GitHub itself. No runtime dependency on anyone's server.
+
+```yaml title=".github/workflows/stack-fingerprint.yml"
+name: Stack Fingerprint
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1" # weekly refresh
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  card:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mattqdev/stackfingerprint-action@v1
+        with:
+          theme: scanner
+          layout: classic
+```
+
+Then reference the local file in your README:
+
+<Snippet
+  code={`[![Stack Fingerprint](./assets/stack-fingerprint.svg)](https://stackfingerprint.vercel.app/?repo=OWNER/REPO)`}
+  label="README.md"
+/>
+
+There's a full walkthrough in [Automate your README's tech stack with GitHub Actions](/blog/automate-readme-stack-card-github-action).
+
+## Keep the list honest: filtering
+
+A long wall of logos puts people off and misrepresents what the project really runs on. Whatever option you pick, show what matters:
+
+| `categoryFilter` | What it shows                                 |
+| ---------------- | --------------------------------------------- |
+| `all`            | Everything; dev-only tools are dimmed         |
+| `prodonly`       | Production dependencies only                  |
+| `top`            | Languages and frameworks, max 5               |
+| `core`           | Languages, frameworks and runtimes            |
+| `devtools`       | Build tools, package managers, tests, linters |
+
+For finer control, add a `.stackfingerprint.json` at the repo root:
+
+```json
+{
+  "ignore": ["babel", "webpack"],
+  "pin": ["nextjs", "typescript"],
+  "labels": { "nextjs": "Next.js 16" }
+}
+```
+
+Monorepo? Scan one package with `path`, e.g. `&path=apps/web`.
+
+## Where to put it
+
+- **Right under the title and description.** It's context, not an appendix.
+- **Link the card** back to something useful (the builder, or your docs) so it's clickable.
+- **One card, not three.** Pick a layout that fits the README's width: `classic` for most, `banner` for a header, `compact` for a sidebar-like look.
+
+## Which one should you use?
+
+- A personal profile README you update by hand anyway: **Option 1** is fine.
+- An actively developed project: **Option 3**. It's set-and-forget and survives refactors.
+- Just trying it out: **Option 2**, then switch to the Action when you're happy with the look.
+
+<TryIt />

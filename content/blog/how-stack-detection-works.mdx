@@ -1,0 +1,101 @@
+---
+title: "How Stack Fingerprint detects 200+ technologies with one GitHub API call"
+description: "Inside the scanner: one recursive Git Trees request, file signals, dependency signals, dev-only tagging, and why every icon has to be inlined as a data URI for GitHub to render it."
+date: 2026-10-13
+tags: [engineering, github, svg]
+techs: [nextjs, typescript, supabase, vercel]
+---
+
+Every README has the same section: a wall of hand-picked badges, half of them out of date. The project moved from Webpack to Vite two years ago, but the badge is still there.
+
+Stack Fingerprint does the opposite: **point it at a repo and let the repo say what it's built with.** This post explains how the detection works and what broke along the way.
+
+<StackCard
+  repo="mattqdev/stackfingerprint"
+  theme="signal"
+  caption="The card for the Stack Fingerprint repo itself. Nobody typed 'Next.js' anywhere."
+/>
+
+## One request for the whole file tree
+
+The scanner makes **one** call to the GitHub Git Trees API with `recursive=1`:
+
+```http
+GET /repos/{owner}/{repo}/git/trees/{branch}?recursive=1
+```
+
+It returns the entire file tree, flattened. No crawling directory by directory, so a scan costs a single request regardless of how deep the repo is. That matters a lot when you're running on GitHub's unauthenticated rate limits.
+
+## Pass 1: file signals
+
+Each technology is a small object with a `check` function that runs against file paths:
+
+```js
+{
+  id: "astro",
+  label: "Astro",
+  color: "#FF5D01",
+  iconSlug: "astro",
+  category: "framework",
+  check: (f) => /^astro\.config/.test(f),
+}
+```
+
+`astro.config.mjs` exists? It's an Astro project. `Dockerfile`? Docker. `*.tf`? Terraform. Languages come from file extensions instead, so a repo that's 90% TypeScript and has one stray `.py` script still reads correctly.
+
+You can see the exact files and patterns for every technology in the [technology directory](/tech), for example [Docker](/tech/docker) or [Terraform](/tech/terraform).
+
+## Pass 2: dependency signals
+
+Lots of libraries have no config file (think `@supabase/supabase-js` or `openai`), so the scanner also reads `package.json`, `requirements.txt` / `pyproject.toml`, `Gemfile` and `composer.json`, and maps dependency names to signals:
+
+```js
+const DEP_SIGNALS = {
+  next: "nextjs",
+  "@sveltejs/kit": "sveltekit",
+  "@prisma/client": "prisma",
+  "drizzle-orm": "drizzle",
+  vitest: "vitest",
+  // ...
+};
+```
+
+It also remembers **where** each dependency came from. Anything that only appears in `devDependencies` is tagged as dev-only, and test runners and linters are always dev-only. That tag powers the filters: `prodonly` hides dev tools entirely, and `all` dims them.
+
+## The bug that taught me how GitHub serves images
+
+The first version looked perfect on the website and broken on GitHub: every icon was missing.
+
+The SVG used `<image href="https://cdn.../react.svg">` for each logo. But GitHub doesn't serve README images directly. It proxies them through **Camo**, with a strict Content Security Policy. An SVG loaded that way can't fetch external resources, so every icon was blocked.
+
+The fix: resolve icons server-side from the [`simple-icons`](https://simpleicons.org) package and inline each one as a base64 `data:` URI. The card became a single self-contained file with zero external requests, which also made it faster and easier to cache.
+
+<Callout type="tip" title="If you build dynamic README images">
+  The SVG must be fully self-contained: no external images, fonts or
+  stylesheets.
+</Callout>
+
+## "Too many badges": turning feedback into features
+
+After the first launch, the feedback was clear and fair:
+
+- Some detected technologies were false positives or not worth showing.
+- In monorepos, a full scan mixed signals from unrelated sub-projects.
+- Long lists put contributors off and misrepresented the real stack.
+- An image from a third-party domain in a README is a supply-chain risk.
+
+Each became a feature: `categoryFilter` (`top`, `core`, `prodonly`…), `?path=apps/web` for monorepos, a `.stackfingerprint.json` with `ignore` / `pin` / `labels`, and a [GitHub Action](/blog/automate-readme-stack-card-github-action) that commits the SVG to your own repo.
+
+## The stack
+
+- **Next.js** (App Router) for the builder UI and the `/api/card` route
+- A hand-written **SVG builder**: string templates, no canvas, no headless browser
+- **simple-icons** for logos, inlined at render time
+- **Supabase** for the showcase of projects using the card
+- **Vercel** for hosting, with `stale-while-revalidate` caching to stay friendly with GitHub's rate limits
+
+## Add a technology
+
+Is your favourite framework missing? A new signal is one object in `src/data/signals.js`, plus one line in the dependency map if it has no config file. Issues labelled [`good first issue`](https://github.com/mattqdev/stackfingerprint/issues?q=is%3Aopen+label%3A%22good+first+issue%22) list exactly which files to touch.
+
+<TryIt />

@@ -1,0 +1,107 @@
+---
+title: "Automate your README's tech stack with GitHub Actions"
+description: "Generate an up-to-date tech stack card on every push and commit it to your repo, so your README never depends on a third-party image server. Setup, inputs and monorepo tips."
+date: 2026-10-13
+tags: [github-actions, readme, automation]
+techs: [github-actions]
+---
+
+A tech stack section is only useful if it's true. The most reliable way to keep it true is to stop editing it by hand: let CI regenerate it whenever the code changes.
+
+This guide sets up the [Stack Fingerprint Action](https://github.com/marketplace/actions/stack-fingerprint), which scans your repo on GitHub's runners and commits an SVG card to it.
+
+## Why commit the image instead of hotlinking it?
+
+GitHub doesn't load README images directly: it proxies them through its image cache (Camo). If you embed an image from someone else's domain, you're trusting that domain to keep serving the right thing, forever.
+
+Committing the SVG to your own repo means:
+
+- **No third-party runtime dependency.** The card is served by GitHub like any other file.
+- **No supply-chain surprise.** What's in the README is what's in your git history.
+- **It still updates itself**, because the workflow regenerates it.
+
+## 1. Add the workflow
+
+Create `.github/workflows/stack-fingerprint.yml`:
+
+```yaml title=".github/workflows/stack-fingerprint.yml"
+name: Stack Fingerprint
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1" # weekly refresh
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  card:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mattqdev/stackfingerprint-action@v1
+        with:
+          theme: scanner
+          layout: classic
+```
+
+`permissions: contents: write` is what allows the job to commit the generated file. The `schedule` trigger is optional; it catches changes that didn't go through `main`.
+
+## 2. Reference the file in your README
+
+<Snippet
+  code={`[![Stack Fingerprint](./assets/stack-fingerprint.svg)](https://stackfingerprint.vercel.app/?repo=OWNER/REPO)`}
+  label="README.md"
+/>
+
+Push, wait for the workflow to finish, and the card appears. From now on every push to `main` refreshes it.
+
+## 3. Pick a look
+
+The Action accepts the same options as the web builder. The quickest way to choose is to open the [builder](/), try themes and layouts on your repo, and copy the values into `with:`:
+
+| Input        | Example                         | What it does            |
+| ------------ | ------------------------------- | ----------------------- |
+| `theme`      | `scanner`, `ocean`, `midnight`  | Colour theme            |
+| `layout`     | `classic`, `banner`, `terminal` | Card layout             |
+| `size`       | `sm`, `md`, `lg`, `xl`          | Card size               |
+| `icon-style` | `color`, `mono`                 | Icon rendering          |
+| `filter`     | `prodonly`, `top`, `core`       | Which signals to show   |
+| `path`       | `apps/web`                      | Scan a sub-folder       |
+| `output`     | `assets/stack.svg`              | Where to write the file |
+
+The full list is in the [Action's README](https://github.com/mattqdev/stackfingerprint-action#inputs).
+
+<Callout type="tip" title="Monorepos">
+  Run the step once per package with different `path` and `output` values to get
+  one card per app, e.g. `apps/web` and `apps/api`.
+</Callout>
+
+## 4. Fine-tune what's detected
+
+Detection is automatic, but you decide what's shown. Add a `.stackfingerprint.json` at the repo root:
+
+```json
+{
+  "ignore": ["babel", "webpack"],
+  "pin": ["nextjs", "typescript"],
+  "labels": { "nextjs": "Next.js 16" }
+}
+```
+
+- `ignore` hides technologies that are detected but not worth showing.
+- `pin` forces a technology onto the card even if it isn't detected.
+- `labels` renames a technology, handy for adding a version.
+
+## Don't want a third-party Action either?
+
+Fair. The [Stack Fingerprint repo](https://github.com/mattqdev/stackfingerprint/blob/main/.github/workflows/stack-fingerprint.yml) has a plain workflow that does the same job with `curl`, short enough to audit line by line. You can also deploy your own instance on Vercel and point the Action's `api-url` input at it.
+
+## Wrap-up
+
+Three files changed, once: a workflow, a README line, and optionally a config file. After that the stack section maintains itself.
+
+<TryIt>Preview your card first →</TryIt>

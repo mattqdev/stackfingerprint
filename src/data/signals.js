@@ -405,6 +405,7 @@ export const SIGNALS = [
     color: "#007FFF",
     textColor: "#ffffff",
     iconSlug: "mui",
+    category: "ui",
     // FIX: /mui/.test(f) too broad. Dep-based detection is primary.
     check: (f) => false,
   },
@@ -414,6 +415,7 @@ export const SIGNALS = [
     color: "#319795",
     textColor: "#ffffff",
     iconSlug: "chakraui",
+    category: "ui",
     // FIX: /chakra/.test(f) too broad. Dep-based detection is primary.
     check: (f) => false,
   },
@@ -432,6 +434,7 @@ export const SIGNALS = [
     color: "#DB7093",
     textColor: "#ffffff",
     iconSlug: "styledcomponents",
+    category: "ui",
     // FIX: dep-based detection is primary
     check: (f) => false,
   },
@@ -451,6 +454,7 @@ export const SIGNALS = [
     color: "#1AD1A5",
     textColor: "#000000",
     iconSlug: "daisyui",
+    category: "ui",
     // FIX: dep-based detection is primary
     check: (f) => false,
   },
@@ -1156,6 +1160,7 @@ export const SIGNALS = [
     color: "#291A3D",
     textColor: "#ffffff",
     iconSlug: "testcontainers",
+    category: "testing",
     // FIX: dep-based detection is primary
     check: (f) => false,
   },
@@ -1369,6 +1374,7 @@ export const SIGNALS = [
     color: "#4FF8D2",
     textColor: "#000000",
     iconSlug: "turso",
+    category: "db",
     // FIX: /turso/.test(f) too broad; dep-based detection is primary
     check: (f) => false,
   },
@@ -1405,6 +1411,7 @@ export const SIGNALS = [
     color: "#12FFF7",
     textColor: "#000000",
     iconSlug: "neon",
+    category: "db",
     // FIX: /neon/.test(f) too broad; dep-based detection is primary
     check: (f) => false,
   },
@@ -1830,6 +1837,7 @@ export const SIGNALS = [
     color: "#443E38",
     textColor: "#ffffff",
     iconSlug: "zustand",
+    category: "state",
     // FIX: dep-based detection is primary
     check: (f) => false,
   },
@@ -1839,6 +1847,7 @@ export const SIGNALS = [
     color: "#ffffff",
     textColor: "#000000",
     iconSlug: "jotai",
+    category: "state",
     // FIX: dep-based detection is primary
     check: (f) => false,
   },
@@ -1848,6 +1857,7 @@ export const SIGNALS = [
     color: "#FF7102",
     textColor: "#ffffff",
     iconSlug: "mobx",
+    category: "state",
     // FIX: dep-based detection is primary
     check: (f) => false,
   },

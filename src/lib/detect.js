@@ -3,7 +3,7 @@ import { SIGNALS, EXT_LANGS, CATEGORY_META } from "../data/signals";
 import { fetchTree } from "./github";
 
 // ── Dependency → signal ID mapping ────────────────────────────────────────
-const DEP_SIGNALS = {
+export const DEP_SIGNALS = {
   // Frameworks
   next: "nextjs",
   nuxt: "nuxt",
@@ -167,7 +167,7 @@ const INHERENTLY_DEV = new Set([
 ]);
 
 // ── Python dependency → signal ID ─────────────────────────────────────────
-const PYTHON_DEP_SIGNALS = {
+export const PYTHON_DEP_SIGNALS = {
   django: "django",
   flask: "flask",
   fastapi: "fastapi",
@@ -190,7 +190,7 @@ const PYTHON_DEP_SIGNALS = {
 };
 
 // ── Ruby Gemfile → signal ID ───────────────────────────────────────────────
-const RUBY_DEP_SIGNALS = {
+export const RUBY_DEP_SIGNALS = {
   rails: "rails",
   "ruby-on-rails": "rails",
   rspec: "rspec",
@@ -199,7 +199,7 @@ const RUBY_DEP_SIGNALS = {
 };
 
 // ── PHP composer.json → signal ID ─────────────────────────────────────────
-const PHP_DEP_SIGNALS = {
+export const PHP_DEP_SIGNALS = {
   "laravel/framework": "laravel",
   "symfony/symfony": "symfony",
   "symfony/framework-bundle": "symfony",

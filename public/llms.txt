@@ -8,5 +8,13 @@
 - [README](https://github.com/mattqdev/stackfingerprint#readme): Full usage, themes and options.
 - [GitHub Action](https://github.com/mattqdev/stackfingerprint-action): Commits an up-to-date stack card to your repo's README.
 
+## Blog
+- [How Stack Fingerprint detects 200+ technologies with one GitHub API call](https://stackfingerprint.vercel.app/blog/how-stack-detection-works): Inside the scanner: one recursive Git Trees request, file signals, dependency signals, dev-only tagging, and why every icon has to be inlined as a data URI for GitHub to render it.
+- [Automate your README's tech stack with GitHub Actions](https://stackfingerprint.vercel.app/blog/automate-readme-stack-card-github-action): Generate an up-to-date tech stack card on every push and commit it to your repo, so your README never depends on a third-party image server. Setup, inputs and monorepo tips.
+- [How to add a tech stack section to your GitHub README (2026 guide)](https://stackfingerprint.vercel.app/blog/add-tech-stack-to-github-readme): Three ways to show what your project is built with: hand-made shields.io badges, a live auto-detected stack card, or a card committed by a GitHub Action. Pros, cons and copy-paste snippets.
+
+## Technologies
+- [Supported technologies](https://stackfingerprint.vercel.app/tech): Every framework, language, database and tool the scanner detects, with the files and dependencies used for each.
+
 ## Optional
 - [Sitemap](https://stackfingerprint.vercel.app/sitemap.xml)
