@@ -25,6 +25,12 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://stackfingerprint.vercel.app/blog/github-profile-readme-ideas</loc>
+    <lastmod>2026-10-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://stackfingerprint.vercel.app/blog/automate-readme-stack-card-github-action</loc>
     <lastmod>2026-10-13</lastmod>
     <changefreq>monthly</changefreq>
@@ -35,6 +41,18 @@
     <lastmod>2026-10-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://stackfingerprint.vercel.app/blog/tag/github</loc>
+    <lastmod>2026-10-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://stackfingerprint.vercel.app/blog/tag/readme</loc>
+    <lastmod>2026-10-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.4</priority>
   </url>
   <url>
     <loc>https://stackfingerprint.vercel.app/tech/nextjs</loc>
