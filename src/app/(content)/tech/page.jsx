@@ -1,6 +1,7 @@
 import { getAllTechs, getTechsByCategory } from "../../../lib/tech";
 import { TechPills } from "../../../components/blog/MdxComponents";
 import JsonLd from "../../../components/site/JsonLd";
+import { TECH_CONTENT_UPDATED } from "../../../data/techContent.mjs";
 import { Eyebrow } from "../../../components/brand/Brand";
 import { SITE_URL } from "../../../data/site";
 
@@ -24,6 +25,7 @@ export default function TechIndex() {
           name: "Technologies detected by Stack Fingerprint",
           url: `${SITE_URL}/tech`,
           description: DESCRIPTION,
+          dateModified: TECH_CONTENT_UPDATED,
         }}
       />
       <header className="sf-page-head">

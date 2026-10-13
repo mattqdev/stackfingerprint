@@ -346,5 +346,8 @@ export const TECH_CONTENT = {
   },
 };
 
+/** Last edit to the copy above: dateModified / sitemap lastmod for /tech. */
+export const TECH_CONTENT_UPDATED = "2026-10-13";
+
 /** Technology ids with hand-written content (indexable pages). */
 export const INDEXABLE_TECH_IDS = Object.keys(TECH_CONTENT);

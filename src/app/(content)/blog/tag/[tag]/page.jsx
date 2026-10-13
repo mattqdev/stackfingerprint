@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getAllTags, getPostsByTag } from "../../../../../lib/posts.mjs";
 import PostCard from "../../../../../components/blog/PostCard";
 import { Eyebrow } from "../../../../../components/brand/Brand";
+import JsonLd, { breadcrumbs } from "../../../../../components/site/JsonLd";
 import { SITE_URL } from "../../../../../data/site";
 
 export const dynamicParams = false;
@@ -28,8 +29,32 @@ export default async function TagPage({ params }) {
   const t = getAllTags().find((x) => x.slug === tag);
   if (!t) notFound();
   const posts = getPostsByTag(tag);
+  const url = `${SITE_URL}/blog/tag/${tag}`;
   return (
     <div className="sf-container sf-page">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "CollectionPage",
+              name: `#${t.tag} articles`,
+              url,
+              dateModified: posts[0]?.updated ?? posts[0]?.date,
+              hasPart: posts.map((p) => ({
+                "@type": "BlogPosting",
+                headline: p.title,
+                url: `${SITE_URL}/blog/${p.slug}`,
+              })),
+            },
+            breadcrumbs([
+              ["Home", SITE_URL],
+              ["Blog", `${SITE_URL}/blog`],
+              [`#${t.tag}`, url],
+            ]),
+          ],
+        }}
+      />
       <header className="sf-page-head">
         <Eyebrow index="01">
           <a href="/blog">Blog</a> / tag

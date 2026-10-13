@@ -3,22 +3,7 @@ Allow: /
 Disallow: /admin
 Disallow: /api/admin
 
-User-agent: GPTBot
-Allow: /
-Disallow: /admin
-Disallow: /api/admin
-
 User-agent: OAI-SearchBot
-Allow: /
-Disallow: /admin
-Disallow: /api/admin
-
-User-agent: ChatGPT-User
-Allow: /
-Disallow: /admin
-Disallow: /api/admin
-
-User-agent: ClaudeBot
 Allow: /
 Disallow: /admin
 Disallow: /api/admin
@@ -28,22 +13,42 @@ Allow: /
 Disallow: /admin
 Disallow: /api/admin
 
-User-agent: Claude-User
-Allow: /
-Disallow: /admin
-Disallow: /api/admin
-
-User-agent: anthropic-ai
-Allow: /
-Disallow: /admin
-Disallow: /api/admin
-
 User-agent: PerplexityBot
 Allow: /
 Disallow: /admin
 Disallow: /api/admin
 
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin
+Disallow: /api/admin
+
+User-agent: Claude-User
+Allow: /
+Disallow: /admin
+Disallow: /api/admin
+
 User-agent: Perplexity-User
+Allow: /
+Disallow: /admin
+Disallow: /api/admin
+
+User-agent: MistralAI-User
+Allow: /
+Disallow: /admin
+Disallow: /api/admin
+
+User-agent: GPTBot
+Allow: /
+Disallow: /admin
+Disallow: /api/admin
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /admin
+Disallow: /api/admin
+
+User-agent: anthropic-ai
 Allow: /
 Disallow: /admin
 Disallow: /api/admin
@@ -58,7 +63,22 @@ Allow: /
 Disallow: /admin
 Disallow: /api/admin
 
+User-agent: Meta-ExternalAgent
+Allow: /
+Disallow: /admin
+Disallow: /api/admin
+
 User-agent: CCBot
+Allow: /
+Disallow: /admin
+Disallow: /api/admin
+
+User-agent: Bytespider
+Allow: /
+Disallow: /admin
+Disallow: /api/admin
+
+User-agent: Amazonbot
 Allow: /
 Disallow: /admin
 Disallow: /api/admin

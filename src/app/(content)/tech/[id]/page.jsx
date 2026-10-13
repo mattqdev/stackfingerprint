@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getAllTechs, getTech, getRelatedTechs } from "../../../../lib/tech";
 import { getPostsByTech } from "../../../../lib/posts.mjs";
+import { TECH_CONTENT_UPDATED } from "../../../../data/techContent.mjs";
 import PostCard from "../../../../components/blog/PostCard";
 import {
   StackCard,
@@ -64,6 +65,7 @@ export default async function TechPage({ params }) {
               name: `${t.label} detection`,
               url,
               description: describe(t),
+              dateModified: TECH_CONTENT_UPDATED,
             },
             breadcrumbs([
               ["Home", SITE_URL],

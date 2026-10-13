@@ -35,7 +35,7 @@
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
     "prettier": "3.8.1",
-    "site-seo-kit": "^0.1.0",
+    "site-seo-kit": "^0.2.0",
     "tailwindcss": "^4.2.1",
     "typescript": "5.9.3"
   }

@@ -44,12 +44,13 @@ export default {
         ];
       },
       async () => {
-        const { INDEXABLE_TECH_IDS } =
+        const { INDEXABLE_TECH_IDS, TECH_CONTENT_UPDATED: lastmod } =
           await import("./src/data/techContent.mjs");
         return [
-          { path: "/tech", changefreq: "weekly", priority: 0.7 },
+          { path: "/tech", changefreq: "weekly", priority: 0.7, lastmod },
           ...INDEXABLE_TECH_IDS.map((id) => ({
             path: `/tech/${id}`,
+            lastmod,
             changefreq: "monthly",
             priority: 0.6,
           })),
