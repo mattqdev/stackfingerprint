@@ -1,0 +1,12 @@
+# Stack Fingerprint
+
+> Analyze any GitHub repository to identify its tech stack and generate an embeddable SVG card for your README.
+
+## Docs
+- [Stack Fingerprint](https://stackfingerprint.vercel.app/): Paste a GitHub repo URL, detect its stack and configure the card.
+- [Card API](https://stackfingerprint.vercel.app/api/card?repo=OWNER/REPO): SVG card endpoint. Options: theme, layout, size, categoryFilter, path (monorepo subfolder).
+- [README](https://github.com/mattqdev/stackfingerprint#readme): Full usage, themes and options.
+- [GitHub Action](https://github.com/mattqdev/stackfingerprint-action): Commits an up-to-date stack card to your repo's README.
+
+## Optional
+- [Sitemap](https://stackfingerprint.vercel.app/sitemap.xml)

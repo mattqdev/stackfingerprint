@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "site-seo-kit generate && next build",
     "start": "npm run build && next start",
     "lint": "next lint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "seo:generate": "site-seo-kit generate",
+    "seo:indexnow": "site-seo-kit indexnow",
+    "seo:doctor": "site-seo-kit doctor"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -26,6 +29,7 @@
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
     "prettier": "3.8.1",
+    "site-seo-kit": "^0.1.0",
     "tailwindcss": "^4.2.1",
     "typescript": "5.9.3"
   }
